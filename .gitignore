@@ -1,0 +1,4 @@
+# arduino-cli build output (contains machine-specific absolute paths)
+firmware/*/build/
+
+.DS_Store

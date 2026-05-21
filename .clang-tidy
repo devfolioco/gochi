@@ -1,0 +1,19 @@
+# Static-analysis checks, run by clangd's built-in linter inside Zed
+# (and by the clang-tidy CLI, if you install one).
+#
+# Focused on finding bugs — style is left to clang-format. The check
+# groups most worth having on embedded code:
+#   bugprone-*       narrowing conversions, sizeof mistakes, bad branches
+#   clang-analyzer-* null derefs, leaks, uninitialized reads
+#   performance-*    cheap wins (avoidable copies, etc.)
+Checks: >
+  bugprone-*,
+  clang-analyzer-*,
+  performance-*,
+  modernize-use-nullptr,
+  modernize-use-override,
+  -bugprone-easily-swappable-parameters
+
+# Lint our own headers, but not the ESP32 core / library headers.
+HeaderFilterRegex: 'firmware/.*'
+FormatStyle: file

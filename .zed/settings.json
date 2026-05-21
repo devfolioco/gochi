@@ -1,0 +1,21 @@
+{
+  // Treat Arduino sketch files as C++ for syntax highlighting + clangd.
+  "file_types": {
+    "C++": ["ino"],
+  },
+  "lsp": {
+    "arduino-language-server": {
+      "binary": {
+        "arguments": ["-fqbn", "arduino:avr:uno"],
+      },
+    },
+  },
+  // Format on save via clangd (reads .clang-format). Applies to .ino too,
+  // since file_types maps .ino to C++ above.
+  "languages": {
+    "C++": {
+      "format_on_save": "on",
+      "formatter": "language_server",
+    },
+  },
+}

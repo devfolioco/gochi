@@ -1,0 +1,8 @@
+# Formatting for the tamagotchi firmware (C++ / Arduino).
+# Used by `make format` and by Zed's format-on-save (via clangd).
+BasedOnStyle: Google
+ColumnLimit: 100
+IndentWidth: 2
+PointerAlignment: Left
+# Arduino library include order can be load-bearing — don't reshuffle it.
+SortIncludes: false
