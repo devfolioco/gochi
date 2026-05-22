@@ -44,7 +44,7 @@ int wave(uint32_t now, uint32_t period, int amp) {
 // Expressions whose eyes are open rounded rects can blink on their own.
 bool exprBlinks(ExpressionId e) {
   return e == ExpressionId::Neutral || e == ExpressionId::Sad || e == ExpressionId::Excited ||
-         e == ExpressionId::Angry;
+         e == ExpressionId::Angry || e == ExpressionId::Shy;
 }
 
 // How far (px) the whole face drifts left/right for each expression.
@@ -62,6 +62,10 @@ int gazeAmpFor(ExpressionId e) {
       return 4;
     case ExpressionId::Blink:
       return 3;
+    case ExpressionId::Horny:
+      return 5;  // a sly sidelong glance
+    case ExpressionId::Shy:
+      return 7;  // timid glances
     default:
       return 0;  // surprised / excited / angry / dead
   }
@@ -397,6 +401,46 @@ void ProceduralFace::render(Renderer& r) {
       mouthCurve(r, mx, 46 + bob, 10, 4, 2);
       drawBlush(r, elx - 16, ey + 13);
       drawBlush(r, erx + 7, ey + 13);
+      break;
+    }
+    case ExpressionId::Horny: {
+      int bob = wave(t, 1100, 1);
+      int wig = wave(t, 320, 2);   // tongue wiggle
+      int lid = wave(t, 2600, 2);  // slow, sultry lid droop
+      int ey = EYE_CY + bob;
+      // Heavy-lidded "bedroom" eyes: a round eye with its top erased to
+      // leave a flat-topped slit, finished with a thick eyelid line.
+      roundEye(r, elx, ey, 20, 24, 8, eyeOpen_);
+      roundEye(r, erx, ey, 20, 24, 8, eyeOpen_);
+      int lidH = 11 + lid;
+      r.clearRect(elx - 11, ey - 13, 22, lidH);
+      r.clearRect(erx - 11, ey - 13, 22, lidH);
+      int ly = ey - 13 + lidH;
+      thickLine(r, elx - 9, ly, elx + 9, ly, 1);
+      thickLine(r, erx - 9, ly, erx + 9, ly, 1);
+      // A smirk with a tongue lolling out and wiggling.
+      mouthCurve(r, mx, 43 + bob, 9, 3, 2);
+      openMouth(r, mx + wig, 50 + bob, 8, 9);
+      drawBlush(r, elx - 16, ey + 16);
+      drawBlush(r, erx + 7, ey + 16);
+      break;
+    }
+    case ExpressionId::Shy: {
+      int bob = wave(t, 1700, 1);    // gentle, timid sway
+      int flush = wave(t, 1900, 1);  // the blush flushing
+      int ey = EYE_CY + 1 + bob;
+      // Small, timid eyes and a tiny modest smile.
+      roundEye(r, elx, ey, 15, 17, 6, eyeOpen_);
+      roundEye(r, erx, ey, 15, 17, 6, eyeOpen_);
+      mouthCurve(r, mx, 42 + bob, 6, 2, 2);
+      // A big bashful blush — four diagonal strokes per cheek.
+      int by = ey + 12;
+      for (int i = 0; i < 4; i++) {
+        int xl = elx - 19 + i * 4;
+        int xr = erx + 7 + i * 4;
+        r.drawLine(xl, by + 3 + flush, xl + 5, by - 3 - flush);
+        r.drawLine(xr, by + 3 + flush, xr + 5, by - 3 - flush);
+      }
       break;
     }
     case ExpressionId::Dead: {

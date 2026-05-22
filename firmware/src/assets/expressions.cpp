@@ -15,7 +15,8 @@ const Expression EXPRESSIONS[] = {
     {ExpressionId::Sad, "sad"},         {ExpressionId::Sleepy, "sleepy"},
     {ExpressionId::Excited, "excited"}, {ExpressionId::Surprised, "surprised"},
     {ExpressionId::Angry, "angry"},     {ExpressionId::Blink, "blink"},
-    {ExpressionId::Love, "love"},       {ExpressionId::Dead, "dead"},
+    {ExpressionId::Love, "love"},       {ExpressionId::Horny, "horny"},
+    {ExpressionId::Shy, "shy"},         {ExpressionId::Dead, "dead"},
 };
 
 static_assert(sizeof(EXPRESSIONS) / sizeof(EXPRESSIONS[0]) ==

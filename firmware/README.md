@@ -25,7 +25,7 @@ One command per line. Responses come back one per line — `OK`,
 Anything unrecognized returns `ERR unknown command`.
 
 Expressions: `neutral`, `happy`, `sad`, `sleepy`, `excited`, `surprised`,
-`angry`, `blink`, `love`, `dead`.
+`angry`, `blink`, `love`, `horny`, `shy`, `dead`.
 
 Notes:
 - The `neutral` face is drawn procedurally — minimal rounded-rectangle
@@ -43,7 +43,7 @@ Notes:
 ## Manual test checklist
 
 1. **Boot** — the OLED shows the `neutral` face.
-2. `LIST faces` — prints all 10 expression names.
+2. `LIST faces` — prints all 12 expression names.
 3. `SHOW face happy` — blinks into the happy face; it animates; `OK`.
 4. `SHOW face sleepy` — blinks into the sleepy face.
 5. `SHOW text hello there` — switches to the text view; long text scrolls;
