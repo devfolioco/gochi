@@ -76,7 +76,11 @@ void fillCircle(int x, int y, int r) {
 }
 
 void fillTriangle(int x0, int y0, int x1, int y1, int x2, int y2) {
-  oled.drawTriangle(x0, y0, x1, y1, x2, y2);
+  // drawTriangle() takes signed u8g2_int_t; cast explicitly so the
+  // narrowing is intentional (face coordinates are well within range).
+  oled.drawTriangle(static_cast<u8g2_int_t>(x0), static_cast<u8g2_int_t>(y0),
+                    static_cast<u8g2_int_t>(x1), static_cast<u8g2_int_t>(y1),
+                    static_cast<u8g2_int_t>(x2), static_cast<u8g2_int_t>(y2));
 }
 
 }  // namespace display
