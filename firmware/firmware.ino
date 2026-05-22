@@ -1,10 +1,13 @@
 // firmware.ino — Tamagotchi firmware entry point (ESP32-C3 SuperMini).
 //
-// Phase 1: Desktop Mode only. The pet passively shows whatever view and
-// expression it is told to over the USB serial protocol (see
-// src/command.h). Drive it from a serial monitor at 115200 baud — try
-// "LIST faces". See firmware/README.md for the full command list.
+// Desktop Mode: the pet shows whatever view and expression it is told to
+// over the USB serial protocol (see src/command.h), and the buzzer plays
+// a short jingle synced to each expression. Drive it from a serial
+// monitor at 115200 baud — try "LIST faces". See firmware/README.md.
 
+#include "src/assets/expressions.h"
+#include "src/assets/jingles.h"
+#include "src/buzzer/buzzer.h"
 #include "src/command.h"
 #include "src/config.h"
 #include "src/modes/desktop_mode.h"
@@ -18,22 +21,25 @@ static Transport transport;
 static ViewManager viewManager;
 static DesktopMode desktopMode(transport, renderer);
 
-// Only Desktop Mode exists in Phase 1. This Mode* indirection is the seam
+// Only Desktop Mode exists for now. This Mode* indirection is the seam
 // where Free Mode will slot in later as a second mode.
 static Mode* currentMode = &desktopMode;
+
+// Last expression the buzzer reacted to — see loop().
+static ExpressionId buzzedExpr = ExpressionId::Count;
 
 void setup() {
   transport.begin(115200);
   renderer.init();
+  buzzer::begin();
 
-  // Buttons are wired but unused in Phase 1 (the views are driven over
-  // serial). Configured here so the pins start in a known state.
+  // Buttons are wired but unused — configured so the pins start known.
   pinMode(PIN_BTN_A, INPUT_PULLUP);
   pinMode(PIN_BTN_B, INPUT_PULLUP);
   pinMode(PIN_BTN_C, INPUT_PULLUP);
 
   currentMode->onEnter(viewManager);
-  transport.println("Tamagotchi Phase 1 ready (Desktop Mode). Try: LIST faces");
+  transport.println("Tamagotchi ready (Desktop Mode). Try: LIST faces");
 }
 
 void loop() {
@@ -43,6 +49,16 @@ void loop() {
   if (transport.poll(cmd)) currentMode->onCommand(cmd, viewManager);
 
   currentMode->update(now, viewManager);
+
+  // Buzzer synced to the face: whenever the displayed expression changes
+  // — whatever triggered it — play that expression's jingle.
+  ExpressionId expr = viewManager.face().expression();
+  if (expr != buzzedExpr) {
+    buzzedExpr = expr;
+    Jingle jingle = jingleFor(expr);
+    buzzer::play(jingle.tones, jingle.count);
+  }
+  buzzer::update(now);
 
   renderer.beginFrame();
   viewManager.tick(now, renderer);
