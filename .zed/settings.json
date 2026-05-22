@@ -9,6 +9,15 @@
         "arguments": [],
       },
     },
+    // clangd drives the .cpp/.h files. Point it at the ESP32 riscv GCC so it
+    // inherits that cross-toolchain's system headers (newlib) and target —
+    // otherwise it can't find headers like <sys/reent.h>. The glob has no
+    // machine-specific component, so this stays portable across machines/OSes.
+    "clangd": {
+      "binary": {
+        "arguments": ["--query-driver=/**/riscv32-esp-elf-*", "--background-index"],
+      },
+    },
   },
   // Format on save via clangd (reads .clang-format). Applies to .ino too,
   // since file_types maps .ino to C++ above.

@@ -2,6 +2,14 @@
 # `make build` (or `make db`) writes build/compile_commands.json, which
 # clangd picks up from the build/ subdir. `-xc++` tells clangd the .ino
 # is C++ (it has no standard extension clangd recognizes on its own).
+#
+# Remove: the ESP32 core compiles with riscv32-esp-elf-g++ (GCC); clangd's
+# bundled clang rejects these GCC-only flags, so strip them. (System headers
+# and the riscv target come from clangd's --query-driver, set in
+# .zed/settings.json.)
 CompileFlags:
   Add: [-xc++]
   CompilationDatabase: build
+  Remove:
+    - -fstrict-volatile-bitfields
+    - -fno-tree-switch-conversion
