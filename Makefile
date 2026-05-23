@@ -28,8 +28,18 @@ db:
 ## flash         — compile, then upload to the board
 flash: build upload
 
-## upload        — upload the last build without recompiling
+## upload        — upload the last build without recompiling.
+##                  If the tamagotchi CLI's launchd server is running it
+##                  is holding the serial port; we stop it before the
+##                  upload and restart it on exit (success or failure).
 upload:
+	@_pause=0; \
+	if command -v tamagotchi >/dev/null 2>&1 && launchctl list com.tamagotchi.server >/dev/null 2>&1; then \
+	  _pause=1; \
+	  echo "→ stopping tamagotchi server (it owns the serial port)"; \
+	  tamagotchi server stop; \
+	fi; \
+	trap '[ "$$_pause" = 1 ] && echo "→ restarting tamagotchi server" && tamagotchi server start' EXIT; \
 	$(ARDUINO) upload --fqbn $(FQBN) --port $(PORT) --input-dir $(BUILD) $(SKETCH)
 
 ## monitor       — open the serial monitor (Ctrl-C to exit)
