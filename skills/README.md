@@ -1,77 +1,84 @@
 # Tamagotchi skills
 
-This folder contains an [agentskills.io](https://agentskills.io/)-compliant `SKILL.md` that teaches an AI coding agent how to drive the physical tamagotchi over its locally installed CLI or its background HTTP server (`http://localhost:7474`).
+This folder ships an [agentskills.io](https://agentskills.io/)-compliant `SKILL.md` that teaches an AI coding agent how to drive the physical tamagotchi over its locally installed CLI or its background HTTP server (`http://localhost:7474`).
 
 - Source: [`skills/tamagotchi/SKILL.md`](https://github.com/prathamVaidya/tamagotchi/blob/main/skills/tamagotchi/SKILL.md)
 - Triggers on explicit commands ("tamagotchi face happy", "set mood playful", "show text on the tamagotchi") and optionally on task outcomes (build pass → happy, fail → sad, long wait → sleepy).
 
-The format is the open `SKILL.md` standard, so the same file works in any compatible runtime — install it once into your agent's skills directory and it's discovered automatically. Install the [`tamagotchi` CLI](../cli) first so the skill has something to talk to.
+Install the [`tamagotchi` CLI](../cli) first so the skill has something to talk to. The skill itself follows the open `SKILL.md` spec — a single markdown file with YAML frontmatter — so it works in every agent that implements the standard.
 
-## Claude Code
+## Quick install (recommended)
 
-Claude Code loads skills from `~/.claude/skills/` (user-wide) or `.claude/skills/` (project-local).
-
-**User-wide install (recommended):**
+Use [`npx skills`](https://github.com/vercel-labs/skills) — the universal installer maintained by Vercel Labs. It auto-detects which agents you have installed and drops the skill into the right place for each.
 
 ```sh
-# clone the repo somewhere stable
+# project-local: writes into ./.<agent>/skills/ for every agent it finds
+npx skills add prathamVaidya/tamagotchi
+
+# global: writes into ~/.<agent>/skills/ so every project sees it
+npx skills add prathamVaidya/tamagotchi -g
+
+# target a specific agent (or several)
+npx skills add prathamVaidya/tamagotchi -a claude-code
+npx skills add prathamVaidya/tamagotchi -a claude-code -a openclaw -a hermes-agent -g
+```
+
+That's the whole install. Restart the agent (or open a new session) and the `tamagotchi` skill is discovered automatically. Update later with `npx skills update tamagotchi`, list with `npx skills list`, remove with `npx skills remove tamagotchi`.
+
+## Agent paths
+
+`npx skills` writes to the conventional location for each agent. If you'd rather wire it up by hand (symlink or copy `skills/tamagotchi/` yourself), these are the targets it would use:
+
+| Agent        | `--agent` slug | Project path        | Global path                  |
+| ------------ | -------------- | ------------------- | ---------------------------- |
+| Claude Code  | `claude-code`  | `.claude/skills/`   | `~/.claude/skills/`          |
+| OpenClaw     | `openclaw`     | `skills/`           | `~/.openclaw/skills/`        |
+| Hermes Agent | `hermes-agent` | `.hermes/skills/`   | `~/.hermes/skills/`          |
+
+For other agents (Codex, Cursor, opencode, Cline, Gemini CLI, etc. — 50+ supported), see the full table in [`vercel-labs/skills`](https://github.com/vercel-labs/skills#supported-agents).
+
+## Manual install
+
+If you'd rather not run `npx`, clone the repo and symlink the skill folder yourself.
+
+```sh
 git clone https://github.com/prathamVaidya/tamagotchi.git ~/src/tamagotchi
 
-# symlink the skill so updates flow through with `git pull`
+# Claude Code (global)
 mkdir -p ~/.claude/skills
 ln -s ~/src/tamagotchi/skills/tamagotchi ~/.claude/skills/tamagotchi
-```
 
-**Project-local install** (only this repo's Claude sessions see it):
+# OpenClaw (global)
+mkdir -p ~/.openclaw/skills
+ln -s ~/src/tamagotchi/skills/tamagotchi ~/.openclaw/skills/tamagotchi
 
-```sh
-mkdir -p .claude/skills
-ln -s "$PWD/skills/tamagotchi" .claude/skills/tamagotchi
-```
-
-Restart Claude Code (or open a new session). Verify with `/tamagotchi` — the skill is `user_invocable`, so it appears as a slash command. Otherwise, just ask Claude "make the tamagotchi happy" and it should pick up the skill on its own.
-
-## opencode
-
-[opencode](https://opencode.ai/docs/skills/) has first-class `SKILL.md` support and auto-discovers skills from several locations. The simplest are:
-
-- `~/.config/opencode/skills/*/SKILL.md` — global
-- `.opencode/skills/*/SKILL.md` — project-local
-
-```sh
-git clone https://github.com/prathamVaidya/tamagotchi.git ~/src/tamagotchi
-
-mkdir -p ~/.config/opencode/skills
-ln -s ~/src/tamagotchi/skills/tamagotchi ~/.config/opencode/skills/tamagotchi
-```
-
-opencode also reads `~/.claude/skills/*/SKILL.md` and `~/.agents/skills/*/SKILL.md`, so if you've already installed the skill for Claude Code you don't need to do anything else — opencode will see it too.
-
-Confirm with `opencode` → the agent should list `tamagotchi` among available skills.
-
-## Hermes Agent
-
-[Hermes Agent](https://hermes-agent.nousresearch.com/docs/) expects skills under `~/.hermes/skills/`, optionally nested by category. The `SKILL.md` here works without modification (Hermes follows the same agentskills.io standard).
-
-```sh
-git clone https://github.com/prathamVaidya/tamagotchi.git ~/src/tamagotchi
-
+# Hermes Agent (global)
 mkdir -p ~/.hermes/skills
 ln -s ~/src/tamagotchi/skills/tamagotchi ~/.hermes/skills/tamagotchi
 ```
 
-Hermes picks the skill up on next launch. You can verify by asking it to ping or show a face — it should reach for the skill and run the `tamagotchi` CLI or curl the local server.
+A symlink means `git pull` updates the skill for every agent at once. Use `cp -r` instead if your shell or agent doesn't follow symlinks.
 
-## Other agents
+## Verifying
 
-Any agent that supports the [agentskills.io](https://agentskills.io/) open standard can load this skill — point its skills directory at `skills/tamagotchi/` (symlink, copy, or git submodule). The skill itself is just `SKILL.md` with YAML frontmatter; there's no runtime or build step.
+After install, the skill is `user_invocable`, so most agents expose it as `/tamagotchi`. You can also just ask in plain English — "make the tamagotchi happy", "show 'hello' on the device", "ping the tamagotchi" — and the agent should pick the skill up on its own.
 
-## Updating
+End-to-end smoke test:
 
-If you symlinked, `git pull` in your clone updates every agent at once. If you copied the file, re-copy after each release. The skill is small and rarely changes, so symlinks are usually the right call.
+```sh
+tamagotchi health             # server + device status, should print connected:true
+tamagotchi face happy         # device should show the happy face
+tamagotchi face neutral       # reset
+```
 
 ## Troubleshooting
 
-- **The agent can't find the skill.** Check `SKILL.md` is spelled in all caps and the parent folder is named `tamagotchi`. Some runtimes are strict about both.
+- **Agent can't find the skill.** Make sure `SKILL.md` is all caps and lives in a folder named `tamagotchi`. Some runtimes are strict about both. Re-run `npx skills list` to see what got installed where.
 - **Skill loads but commands fail.** Run `tamagotchi health` yourself — the CLI server probably isn't running. Start it with `tamagotchi server start` (or `tamagotchi server install` the first time).
 - **Server is up but `connected: false`.** Plug the device in. The server reconnects automatically; no restart needed.
+
+## Related
+
+- [Agent Skills specification (agentskills.io)](https://agentskills.io)
+- [`vercel-labs/skills` — the `npx skills` CLI](https://github.com/vercel-labs/skills)
+- [skills.sh — directory of published skills](https://skills.sh)
