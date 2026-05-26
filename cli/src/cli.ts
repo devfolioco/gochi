@@ -1,9 +1,24 @@
 // cli.ts — CLI entry point (invoked by ../bin/tamagotchi.js via tsx).
+//
+// User-facing surface:
+//   tamagotchi setup                  one-time install (daemon + HTTP frontend)
+//   tamagotchi face|mood|text|image   drive the pet (talks to daemon via UDS)
+//   tamagotchi ping|health            liveness / status
+//   tamagotchi get|list               queries
+//   tamagotchi server enable          turn HTTP frontend on (default after setup)
+//   tamagotchi server disable         turn HTTP frontend off
+//   tamagotchi server status          HTTP frontend state
+//   tamagotchi daemon status          daemon state
+//
+// Internal (invoked by launchd plists):
+//   tamagotchi daemon run             foreground daemon process
+//   tamagotchi server run             foreground HTTP frontend process
 
 import { select } from "@inquirer/prompts";
 import { Command } from "commander";
 
 import * as client from "./client";
+import { runDaemon } from "./daemon";
 import { fileToFrameBase64 } from "./image";
 import { runServer } from "./server";
 import * as service from "./service";
@@ -22,6 +37,26 @@ program
   .name("tamagotchi")
   .description("Drive the Tamagotchi desk pet over USB serial.")
   .version(VERSION, "-v, --version");
+
+// --- One-time setup ----------------------------------------------------
+
+program
+  .command("setup")
+  .description("install the daemon (and HTTP frontend) so the pet is always reachable")
+  .action(() => service.setup());
+
+// stop / start release and reacquire the serial port. The daemon keeps
+// running; only the device link is dropped. Used before `make flash` and
+// any other tool that needs exclusive access to /dev/cu.usbmodem*.
+program
+  .command("stop")
+  .description("release the serial port (e.g. before flashing firmware)")
+  .action(async () => print(await client.stop()));
+
+program
+  .command("start")
+  .description("reacquire the serial port after a `stop`")
+  .action(async () => print(await client.start()));
 
 // --- Pet commands ------------------------------------------------------
 
@@ -97,24 +132,34 @@ list.command("faces").description("list all expression names")
 program.command("ping").description("liveness check (PONG)")
   .action(async () => print(await client.ping()));
 
-program.command("health").description("server + device status")
+program.command("health").description("daemon + device status")
   .action(async () => print(await client.health()));
 
-// --- Server management -------------------------------------------------
+// --- Daemon management -------------------------------------------------
 
-const server = program.command("server").description("manage the local HTTP server");
-server.command("run").description("run the server in the foreground (used by launchd)")
+const daemon = program.command("daemon").description("manage the long-lived port-owning daemon");
+daemon.command("run")
+  .description("run the daemon in the foreground (used by launchd)")
+  .action(() => runDaemon());
+daemon.command("status")
+  .description("show daemon launchd + socket status")
+  .action(() => service.daemonStatus());
+
+// --- HTTP frontend management -----------------------------------------
+
+const server = program.command("server").description("manage the optional HTTP frontend");
+server.command("enable")
+  .description("turn on the TCP HTTP listener (auto-started at login)")
+  .action(() => service.enableHttp());
+server.command("disable")
+  .description("turn off the TCP HTTP listener")
+  .action(() => service.disableHttp());
+server.command("status")
+  .description("show HTTP frontend status")
+  .action(() => service.serverStatus());
+server.command("run")
+  .description("run the HTTP frontend in the foreground (used by launchd)")
   .action(() => runServer());
-server.command("status").description("show installed / launchd / HTTP status")
-  .action(() => service.status());
-server.command("start").description("start the installed server")
-  .action(() => service.start());
-server.command("stop").description("stop the running server")
-  .action(() => service.stop());
-server.command("install").description("install the launchd agent so it auto-starts at login")
-  .action(() => service.install());
-server.command("uninstall").description("remove the launchd agent")
-  .action(() => service.uninstall());
 
 program.parseAsync(process.argv).catch((e) => {
   // Inquirer throws this on Ctrl-C — exit quietly instead of stack-tracing.

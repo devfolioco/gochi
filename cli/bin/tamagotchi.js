@@ -8,11 +8,15 @@
 // under Bun — github.com/oven-sh/bun/issues/18546).
 
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const tsxBin = join(here, "..", "node_modules", "tsx", "dist", "cli.mjs");
+// Resolve tsx via Node's module resolution so this works whether tsx
+// lives in this package's node_modules or was hoisted by the installer.
+const require = createRequire(import.meta.url);
+const tsxBin = require.resolve("tsx/cli");
 const cliEntry = join(here, "..", "src", "cli.ts");
 
 const child = spawn(process.execPath, [tsxBin, cliEntry, ...process.argv.slice(2)], {

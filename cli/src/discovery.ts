@@ -1,81 +1,79 @@
-// discovery.ts — find the connected Tamagotchi by PINGing candidate ports.
+// discovery.ts — hotplug-style watcher for connected Tamagotchi devices.
+//
+// SerialPort.list() is a cheap metadata query — it asks the OS for the
+// current set of serial devices without opening any of them. We poll it
+// every ~1.5s and compare against the last-seen set to detect attach /
+// detach. Crucially we *never* open a non-Espressif port: doing so on
+// arbitrary USB-serial devices (Arduinos, other ESPs) would toggle
+// DTR/RTS and reset whatever's plugged in, which the old probe-every-
+// port code did every 5 seconds.
 
 import { SerialPort } from "serialport";
-import { ReadlineParser } from "@serialport/parser-readline";
 
 // USB VID for Espressif's native CDC (ESP32-S2/S3/C3 with CDCOnBoot).
 const ESPRESSIF_VID = "303a";
+const POLL_MS = 1500;
 
-// Returns the device path (e.g. /dev/cu.usbmodem101) of a connected pet,
-// or null if none found.
-export async function findDevice(): Promise<string | null> {
-  const ports = await SerialPort.list();
-  // On macOS SerialPort.list returns /dev/tty.* (blocking, waits for
+export type DiscoveryEvent =
+  | { type: "attach"; path: string }
+  | { type: "detach"; path: string };
+
+export type DiscoveryHandle = { stop: () => void };
+
+function normalize(p: string): string {
+  // On macOS SerialPort.list() returns /dev/tty.* (blocking, waits for
   // carrier on open); we want /dev/cu.* (non-blocking call-up device).
-  const isMac = process.platform === "darwin";
-  const normalize = (p: string) =>
-    isMac && p.startsWith("/dev/tty.") ? p.replace("/dev/tty.", "/dev/cu.") : p;
-
-  // Best candidates first: Espressif VID; then anything that looks like a
-  // USB-CDC / USB-serial path. Filter out obvious noise (Bluetooth, debug).
-  const score = (p: any) => {
-    const path = p.path || "";
-    if (/Bluetooth|debug-console/i.test(path)) return -1;
-    if ((p.vendorId || "").toLowerCase() === ESPRESSIF_VID) return 2;
-    if (/usbmodem|ttyACM|ttyUSB|usbserial/i.test(path)) return 1;
-    return 0;
-  };
-  const candidates = ports
-    .map((p) => ({ ...p, _score: score(p), _path: normalize(p.path || "") }))
-    .filter((p) => p._score >= 0)
-    .sort((a, b) => b._score - a._score);
-
-  for (const c of candidates) {
-    console.log(`[discovery] trying ${c._path} (vid=${c.vendorId || "-"})`);
-    if (await tryHandshake(c._path)) {
-      console.log(`[discovery] handshake ok on ${c._path}`);
-      return c._path;
-    }
+  if (process.platform === "darwin" && p.startsWith("/dev/tty.")) {
+    return p.replace("/dev/tty.", "/dev/cu.");
   }
-  if (candidates.length === 0) {
-    console.log("[discovery] no candidate serial ports");
-  } else {
-    console.log("[discovery] no port responded to PING");
-  }
-  return null;
+  return p;
 }
 
-// Open the port briefly, send PING, listen for PONG.
-function tryHandshake(path: string, timeoutMs = 800): Promise<boolean> {
-  return new Promise((resolve) => {
-    let done = false;
-    let port: SerialPort | null = null;
-    const finish = (ok: boolean) => {
-      if (done) return;
-      done = true;
-      try {
-        port?.close(() => {});
-      } catch {}
-      resolve(ok);
-    };
+async function listEspressifPaths(): Promise<Set<string>> {
+  const ports = await SerialPort.list();
+  const out = new Set<string>();
+  for (const p of ports) {
+    if ((p.vendorId || "").toLowerCase() !== ESPRESSIF_VID) continue;
+    if (!p.path) continue;
+    out.add(normalize(p.path));
+  }
+  return out;
+}
+
+// Subscribe to attach/detach events for Espressif USB-serial devices.
+// The callback is invoked synchronously for the initial snapshot
+// (everything already plugged in shows up as "attach") and then on
+// every change.
+export function watchDevices(
+  onEvent: (e: DiscoveryEvent) => void,
+): DiscoveryHandle {
+  let known = new Set<string>();
+  let stopped = false;
+
+  const tick = async (): Promise<void> => {
+    if (stopped) return;
+    let live: Set<string>;
     try {
-      port = new SerialPort({ path, baudRate: 115200, autoOpen: false });
-    } catch {
-      return finish(false);
+      live = await listEspressifPaths();
+    } catch (e: any) {
+      // SerialPort.list() can transiently fail; just try again next tick.
+      console.error(`[discovery] list failed: ${e?.message || e}`);
+      return;
     }
-    port.on("error", () => finish(false));
-    port.open((err: Error | null) => {
-      if (err) return finish(false);
-      const parser = port!.pipe(new ReadlineParser({ delimiter: "\n" }));
-      const timer = setTimeout(() => finish(false), timeoutMs);
-      parser.on("data", (line: string) => {
-        if (line.trim() === "PONG") {
-          clearTimeout(timer);
-          finish(true);
-        }
-      });
-      // Slight delay so the port settles before we write.
-      setTimeout(() => port!.write("PING\n"), 50);
-    });
-  });
+    for (const p of live) if (!known.has(p)) onEvent({ type: "attach", path: p });
+    for (const p of known) if (!live.has(p)) onEvent({ type: "detach", path: p });
+    known = live;
+  };
+
+  // Kick the first poll immediately so the daemon doesn't sit idle for
+  // 1.5s on startup when the device is already attached.
+  void tick();
+  const timer = setInterval(tick, POLL_MS);
+
+  return {
+    stop: () => {
+      stopped = true;
+      clearInterval(timer);
+    },
+  };
 }

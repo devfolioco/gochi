@@ -1,10 +1,38 @@
 {
-  "name": "tamagotchi",
+  "name": "@0xpv/tamagotchi",
   "version": "0.1.0",
   "description": "CLI + local HTTP server for the Tamagotchi desk pet.",
   "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "tamagotchi",
+    "esp32",
+    "esp32-c3",
+    "oled",
+    "ssd1306",
+    "serial",
+    "cli",
+    "desk-pet"
+  ],
   "bin": {
     "tamagotchi": "./bin/tamagotchi.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prathamVaidya/tamagotchi.git",
+    "directory": "cli"
+  },
+  "homepage": "https://github.com/prathamVaidya/tamagotchi#readme",
+  "bugs": {
+    "url": "https://github.com/prathamVaidya/tamagotchi/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "start": "tsx src/cli.ts",

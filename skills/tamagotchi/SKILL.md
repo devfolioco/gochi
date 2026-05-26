@@ -1,33 +1,34 @@
 ---
 name: tamagotchi
-description: Drive a physical tamagotchi device via its locally installed `tamagotchi` CLI or the small HTTP server the CLI runs in the background (default http://localhost:7474, override with TAMAGOTCHI_URL). Use on explicit requests like "tamagotchi face happy", "set mood playful", "show text on the tamagotchi", or "ping the device". May also be used proactively to reflect task outcomes on the device — happy/excited on build or test success, sad/angry on failure, sleepy during long-running commands, surprised when waiting on user input.
+description: Drive a physical tamagotchi device via its locally installed `tamagotchi` CLI, or via the optional HTTP frontend (default http://localhost:7474, override with TAMAGOTCHI_URL). The CLI talks to a local daemon over a Unix socket and always works once `tamagotchi setup` has been run. The HTTP frontend is on by default after setup but the user can disable it with `tamagotchi server disable`. Use on explicit requests like "tamagotchi face happy", "set mood playful", "show text on the tamagotchi", or "ping the device". May also be used proactively to reflect task outcomes on the device — happy/excited on build or test success, sad/angry on failure, sleepy during long-running commands, surprised when waiting on user input.
 user_invocable: true
 ---
 
 # tamagotchi
 
-The user owns a small physical tamagotchi (an ESP32-based device with a screen and a buzzer). They have installed the `tamagotchi` CLI on their machine, which also runs a tiny local HTTP server in the background that owns the serial connection to the device.
+The user owns a small physical tamagotchi (an ESP32-based device with a screen and a buzzer). They have installed the `tamagotchi` CLI on their machine. The CLI talks to a long-lived local **daemon** that owns the USB serial port; an optional **HTTP frontend** sits on top of the daemon for clients that prefer HTTP.
 
 You can drive the tamagotchi two ways:
 
-- **CLI** — invoke `tamagotchi …` as a shell command. Best when the user has granted Bash permissions.
-- **HTTP** — `curl` (or any HTTP client) against `${TAMAGOTCHI_URL:-http://localhost:7474}`. Best when you're sandboxed to HTTP egress but not arbitrary shell.
+- **CLI** — invoke `tamagotchi …` as a shell command. Always works once setup has run. Best when the user has granted Bash permissions.
+- **HTTP** — `curl` (or any HTTP client) against `${TAMAGOTCHI_URL:-http://localhost:7474}`. Best when you're sandboxed to HTTP egress but not arbitrary shell. Requires that the HTTP frontend is enabled (it is by default after `tamagotchi setup`; the user may have disabled it with `tamagotchi server disable`).
 
-Both paths talk to the same server and have identical effect on the device. Pick whichever your current permissions allow; if both are allowed, prefer the CLI — its output is friendlier.
+Both paths reach the same daemon and have identical effect. Pick whichever your current permissions allow; if both are allowed, prefer the CLI — its output is friendlier and it doesn't depend on the HTTP frontend being enabled.
 
 ## 1. Preflight
 
-Confirm the server is reachable before issuing commands:
+Confirm the daemon is reachable before issuing commands:
 
 ```sh
 tamagotchi health
-# or
+# or, if HTTP frontend is enabled:
 curl -s http://localhost:7474/health
 # {"ok":true,"connected":true,"port":"...","version":"..."}
 ```
 
-- Connection refused → the background server isn't running. Tell the user to start it (`tamagotchi server start`, or `tamagotchi server install` the first time). **Do not try to start it yourself** — it's a managed background service.
-- `{"connected": false}` → the device is unplugged or hasn't enumerated yet. Mention it once; the server will reconnect automatically when the device returns. Don't poll.
+- CLI says "daemon isn't running" → tell the user to run `tamagotchi setup` (one-time). **Do not try to start it yourself.**
+- HTTP returns connection refused but CLI works → the HTTP frontend is disabled. Use the CLI, or ask the user to run `tamagotchi server enable`.
+- `{"connected": false}` → the device is unplugged or hasn't enumerated yet. Mention it once; the daemon reconnects automatically within ~1.5 s when the device returns. Don't poll.
 
 ## 2. CLI
 
@@ -113,8 +114,9 @@ Rules:
 
 ## 6. Failure modes
 
-- **Server not running** — Tell the user; suggest `tamagotchi server start`. Don't retry.
-- **Device offline (`connected: false`)** — Mention once, continue. The server reconnects on its own when the device is plugged back in.
+- **Daemon not running** — Tell the user; suggest `tamagotchi setup` (one-time) or `tamagotchi daemon status` to inspect. Don't retry.
+- **HTTP frontend not enabled** — Only matters if you're using `curl`. CLI keeps working. Suggest `tamagotchi server enable` if HTTP is what they want.
+- **Device offline (`connected: false`)** — Mention once, continue. The daemon reconnects on its own (~1.5 s) when the device is plugged back in.
 - **Unknown face/mood** — List the valid set and ask.
 - **Timeout / non-PONG ping** — Treat as offline; one retry max.
 
