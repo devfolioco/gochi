@@ -1,0 +1,16 @@
+{
+  "//": "tsx runs the .ts files at runtime; this tsconfig is purely for the IDE / tsserver — we never emit JavaScript from here.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "lib": ["ES2022"]
+  },
+  "include": ["src/**/*", "bin/**/*"]
+}
