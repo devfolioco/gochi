@@ -8,22 +8,24 @@ namespace {
 
 using buzzer::Tone;
 
-// Each jingle: {frequency Hz, duration ms}; freq 0 is a rest. Kept short
-// and mostly in the 400-1500 Hz range, where a piezo buzzer is loudest.
-const Tone NEUTRAL[] = {{587, 90}};                                   // a soft blip
-const Tone HAPPY[] = {{523, 90}, {659, 90}, {784, 90}, {1047, 150}};  // rising run
-const Tone SAD[] = {{659, 200}, {587, 200}, {494, 350}};              // a descending sigh
-const Tone SLEEPY[] = {{784, 260}, {587, 260}, {494, 430}};           // a slow yawn
-const Tone EXCITED[] = {{880, 60},  {0, 35}, {1047, 60}, {0, 35},
-                        {1175, 60}, {0, 35}, {1319, 110}};  // fast beeps
-const Tone SURPRISED[] = {{784, 60}, {1319, 190}};          // a quick "!"
-const Tone ANGRY[] = {
-    {1175, 90}, {988, 90}, {1175, 90}, {988, 90}, {1175, 150}};         // an agitated trill
-const Tone BLINK[] = {{659, 55}};                                       // a tiny tick
-const Tone LOVE[] = {{659, 110}, {784, 110}, {880, 150}, {1047, 220}};  // sweet tune
-const Tone HORNY[] = {{659, 90}, {988, 90}, {1245, 130}, {988, 100}, {740, 170}};  // a wolf whistle
-const Tone SHY[] = {{587, 90}, {0, 70}, {523, 150}};                   // a timid two-note
-const Tone DEAD[] = {{784, 150}, {587, 150}, {440, 170}, {349, 480}};  // game over
+// Each jingle: {frequency Hz, duration ms}; freq 0 is a rest. Most tones sit
+// around 700-3000 Hz, with only brief bright accents above that.
+const Tone NEUTRAL[] = {{1180, 55}, {0, 24}, {970, 48}};  // compact status ping
+const Tone HAPPY[] = {{840, 54}, {0, 22}, {1180, 62}, {0, 18}, {1660, 58}, {0, 22}, {2320, 96}};
+const Tone SAD[] = {{1320, 170}, {0, 60}, {1040, 190}, {0, 72}, {780, 240}, {640, 220}};
+const Tone SLEEPY[] = {{1160, 230}, {0, 130}, {880, 260}, {0, 160}, {690, 340}, {560, 260}};
+const Tone EXCITED[] = {{1020, 36}, {0, 18},    {1480, 34}, {0, 16},    {2050, 38},
+                        {0, 20},    {2760, 42}, {0, 16},    {3380, 32}, {2460, 84}};
+const Tone SURPRISED[] = {{940, 34}, {0, 26}, {2860, 88}, {3420, 32}};
+const Tone ANGRY[] = {{690, 42}, {760, 36}, {0, 22}, {700, 40},  {780, 34},
+                      {0, 24},   {720, 46}, {0, 18}, {1240, 42}, {3220, 46}};
+const Tone BLINK[] = {{1840, 30}, {0, 16}, {1360, 24}};  // tiny optical tick
+const Tone LOVE[] = {{760, 72}, {0, 28},    {1120, 74}, {0, 24},    {1620, 82},
+                     {0, 30},   {2260, 86}, {0, 22},    {3160, 42}, {2540, 128}};
+const Tone HORNY[] = {{900, 44}, {0, 32},    {1450, 46}, {0, 26},   {2050, 68},
+                      {0, 38},   {1720, 56}, {0, 24},    {2380, 92}};
+const Tone SHY[] = {{820, 50}, {0, 92}, {1160, 44}, {0, 64}, {1480, 70}};
+const Tone DEAD[] = {{1260, 210}, {0, 88}, {940, 240}, {0, 110}, {690, 280}, {520, 360}};
 
 template <size_t N>
 Jingle make(const Tone (&tones)[N]) {
