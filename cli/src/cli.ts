@@ -22,6 +22,7 @@ import { runDaemon } from "./daemon";
 import { fileToFrameBase64 } from "./image";
 import { runServer } from "./server";
 import * as service from "./service";
+import { runTest } from "./test";
 
 const VERSION = "0.1.0";
 
@@ -131,6 +132,16 @@ list.command("faces").description("list all expression names")
 
 program.command("ping").description("liveness check (PONG)")
   .action(async () => print(await client.ping()));
+
+// --- Self-test ---------------------------------------------------------
+
+program
+  .command("test")
+  .description("interactive hardware self-test (asks y/n per component)")
+  .argument("[component]", "serial | oled | buzzer | all (omit to pick from a menu)")
+  .action(async (component?: string) => {
+    await runTest(component);
+  });
 
 program.command("health").description("daemon + device status")
   .action(async () => print(await client.health()));

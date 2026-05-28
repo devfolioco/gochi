@@ -79,6 +79,12 @@ gochi get fps
 gochi list faces
 gochi ping
 gochi health
+
+# interactive hardware self-test — picks a component from a menu,
+# asks y/n after each, drops troubleshooting tips on 'no'.
+gochi test               # menu: serial / OLED / buzzer / all
+gochi test oled          # jump straight to one component
+gochi test all           # run them all in order
 ```
 
 Faces: `neutral happy sad sleepy excited surprised angry blink love horny shy dead`.
