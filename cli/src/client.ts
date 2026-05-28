@@ -2,7 +2,7 @@
 //
 // Default: HTTP over the daemon's Unix domain socket. Fast, local, and
 // works even with the TCP HTTP frontend disabled.
-// Back-compat: if TAMAGOTCHI_URL is set, talk to that TCP endpoint
+// Back-compat: if GOCHI_URL is set, talk to that TCP endpoint
 // instead — useful for hitting a remote daemon or for scripts that have
 // always pointed at http://localhost:7474.
 
@@ -11,7 +11,7 @@ import { existsSync } from "node:fs";
 
 import { DAEMON_SOCKET } from "./ipc";
 
-const TCP_URL = process.env.TAMAGOTCHI_URL;
+const TCP_URL = process.env.GOCHI_URL;
 const USE_TCP = !!TCP_URL;
 
 export type Result = {
@@ -99,17 +99,17 @@ async function call(method: "GET" | "POST", path: string, body?: unknown): Promi
       if (USE_TCP) {
         console.error(
           `Could not reach the Tamagotchi HTTP frontend at ${TCP_URL}.\n` +
-            "Is it enabled? Try: tamagotchi server enable",
+            "Is it enabled? Try: gochi server enable",
         );
       } else if (!existsSync(DAEMON_SOCKET) || /ENOENT/i.test(msg)) {
         console.error(
           "Tamagotchi daemon isn't running.\n" +
-            "Run `tamagotchi setup` once to install it (auto-starts at login on macOS).",
+            "Run `gochi setup` once to install it (auto-starts at login).",
         );
       } else {
         console.error(
           "Tamagotchi daemon socket exists but isn't responding.\n" +
-            "Try: tamagotchi daemon status",
+            "Try: gochi daemon status",
         );
       }
       process.exit(1);

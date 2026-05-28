@@ -1,32 +1,29 @@
-// service.ts — macOS launchd lifecycle for the daemon and HTTP frontend.
+// service/darwin.ts — macOS launchd lifecycle for the daemon and HTTP frontend.
 //
 // Two LaunchAgents, each with its own plist:
 //
 //   com.tamagotchi.daemon  — long-lived port owner; serves the UDS.
-//                            Installed by `tamagotchi setup`. Always on.
+//                            Installed by `gochi setup`. Always on.
 //   com.tamagotchi.http    — TCP :7474 reverse-proxy to the daemon.
 //                            Installed by `setup` (ON by default) and by
 //                            `server enable`; removed by `server disable`.
-//
-// On non-macOS we can't write LaunchAgents. The CLI still works in
-// foreground mode: run `tamagotchi daemon run` (and optionally
-// `tamagotchi server run`) in a terminal yourself.
 
-import { execSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { SERVER_PORT } from "./server";
 import {
   DAEMON_LOG_ERR,
   DAEMON_LOG_OUT,
   DAEMON_SOCKET,
   HTTP_LOG_ERR,
   HTTP_LOG_OUT,
-  daemonRequest,
   ensureDaemonDir,
-} from "./ipc";
+} from "../ipc";
+import { SERVER_PORT } from "../server";
+
+import { type Paths, daemonHealth, httpUp, resolveExecutionPaths } from "./common";
 
 const DAEMON_LABEL = "com.tamagotchi.daemon";
 const HTTP_LABEL = "com.tamagotchi.http";
@@ -36,64 +33,9 @@ const DAEMON_PLIST = join(PLIST_DIR, `${DAEMON_LABEL}.plist`);
 const HTTP_PLIST = join(PLIST_DIR, `${HTTP_LABEL}.plist`);
 const LEGACY_PLIST = join(PLIST_DIR, `${LEGACY_LABEL}.plist`);
 
-function whichBin(name: string): string | null {
-  try {
-    const p = execSync(`command -v ${name}`, { encoding: "utf8", shell: "/bin/sh" }).trim();
-    return p || null;
-  } catch {
-    return null;
-  }
-}
-
 function uid(): number {
   const f = (process as unknown as { getuid?: () => number }).getuid;
   return f ? f.call(process) : 0;
-}
-
-function requireMac(action: string): void {
-  if (process.platform !== "darwin") {
-    console.error(
-      `${action}: only macOS (launchd) is supported right now.\n` +
-        "On Linux/Windows, run `tamagotchi daemon run` (and optionally `tamagotchi server run`) in a terminal.",
-    );
-    process.exit(1);
-  }
-}
-
-// We need three absolute paths every plist needs: node, tsx's CLI, and
-// the cli.ts entry. Resolved once from the global `tamagotchi` symlink.
-type Paths = { nodePath: string; tsxPath: string; cliEntry: string };
-
-function resolveExecutionPaths(): Paths {
-  const tamagotchiSymlink = whichBin("tamagotchi");
-  const nodePath = whichBin("node");
-  if (!tamagotchiSymlink) {
-    console.error(
-      "`tamagotchi` is not on your PATH. Install the CLI globally first (`npm i -g @0xpv/tamagotchi`).",
-    );
-    process.exit(1);
-  }
-  if (!nodePath) {
-    console.error("`node` is not on your PATH. Install Node 18+ first.");
-    process.exit(1);
-  }
-  // The global bin is a symlink to ./bin/tamagotchi.js; walk it back to
-  // cli/ so we can find tsx and src/cli.ts. We resolve tsx via Node's
-  // module resolution because npm hoisting can move it around.
-  const wrapperPath = realpathSync(tamagotchiSymlink);
-  const cliRoot = join(wrapperPath, "..", "..");
-  let tsxPath: string;
-  try {
-    // dynamic require so this file stays importable for the build path
-    const { createRequire } = require("node:module") as typeof import("node:module");
-    const req = createRequire(join(cliRoot, "package.json"));
-    tsxPath = req.resolve("tsx/cli");
-  } catch {
-    // Fallback: best-effort path inside the package's own node_modules.
-    tsxPath = join(cliRoot, "node_modules", "tsx", "dist", "cli.mjs");
-  }
-  const cliEntry = join(cliRoot, "src", "cli.ts");
-  return { nodePath, tsxPath, cliEntry };
 }
 
 function plistFor(label: string, args: string[], stdout: string, stderr: string): string {
@@ -171,10 +113,6 @@ function installHttp(paths: Paths): void {
   bootstrap(HTTP_LABEL, HTTP_PLIST);
 }
 
-// ---------------------------------------------------------------------
-// Public API used by cli.ts
-// ---------------------------------------------------------------------
-
 // Tear down the pre-split LaunchAgent if it's still resident. The old
 // process held :7474 and the serial port itself, which would block the
 // new HTTP frontend from binding and contend with the new daemon for the
@@ -186,7 +124,6 @@ function removeLegacy(): void {
 }
 
 export function setup(): void {
-  requireMac("setup");
   ensureDaemonDir();
   removeLegacy();
   const paths = resolveExecutionPaths();
@@ -197,14 +134,13 @@ export function setup(): void {
   console.log(`  HTTP frontend: ${HTTP_PLIST}  (http://localhost:${SERVER_PORT})`);
   console.log("");
   console.log("Both start automatically at login. To turn off HTTP:");
-  console.log("  tamagotchi server disable");
+  console.log("  gochi server disable");
 }
 
 export function enableHttp(): void {
-  requireMac("server enable");
   ensureDaemonDir();
   if (!existsSync(DAEMON_PLIST)) {
-    console.error("daemon isn't installed yet. Run `tamagotchi setup` first.");
+    console.error("daemon isn't installed yet. Run `gochi setup` first.");
     process.exit(1);
   }
   const paths = resolveExecutionPaths();
@@ -213,7 +149,6 @@ export function enableHttp(): void {
 }
 
 export function disableHttp(): void {
-  requireMac("server disable");
   if (!existsSync(HTTP_PLIST)) {
     console.log("HTTP frontend is already disabled.");
     return;
@@ -226,16 +161,7 @@ export async function serverStatus(): Promise<void> {
   const httpInstalled = existsSync(HTTP_PLIST);
   const list = spawnSync("launchctl", ["list", HTTP_LABEL], { encoding: "utf8" });
   const launchdLoaded = list.status === 0;
-
-  let httpUp = false;
-  try {
-    const res = await fetch(`http://localhost:${SERVER_PORT}/health`, {
-      signal: AbortSignal.timeout(500),
-    });
-    if (res.ok) httpUp = true;
-  } catch {
-    // not up
-  }
+  const up = await httpUp(SERVER_PORT);
 
   console.log(
     JSON.stringify(
@@ -243,7 +169,7 @@ export async function serverStatus(): Promise<void> {
         enabled: httpInstalled,
         plist: httpInstalled ? HTTP_PLIST : null,
         launchd: launchdLoaded ? "loaded" : "not loaded",
-        http: httpUp ? "up" : "down",
+        http: up ? "up" : "down",
         port: SERVER_PORT,
       },
       null,
@@ -257,18 +183,7 @@ export async function daemonStatus(): Promise<void> {
   const list = spawnSync("launchctl", ["list", DAEMON_LABEL], { encoding: "utf8" });
   const launchdLoaded = list.status === 0;
   const socketPresent = existsSync(DAEMON_SOCKET);
-
-  let socketReachable = false;
-  let health: unknown = null;
-  try {
-    const r = await daemonRequest("GET", "/health");
-    if (r.ok) {
-      socketReachable = true;
-      health = r.json;
-    }
-  } catch {
-    // unreachable
-  }
+  const { reachable, json } = await daemonHealth();
 
   console.log(
     JSON.stringify(
@@ -278,8 +193,8 @@ export async function daemonStatus(): Promise<void> {
         launchd: launchdLoaded ? "loaded" : "not loaded",
         socket: DAEMON_SOCKET,
         socketPresent,
-        socketReachable,
-        health,
+        socketReachable: reachable,
+        health: json,
       },
       null,
       2,

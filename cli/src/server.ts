@@ -3,14 +3,14 @@
 // This is a thin reverse-proxy: it listens on :7474 and forwards every
 // request to the daemon's Unix domain socket. The daemon is the single
 // owner of the serial port; this process just opens the network door.
-// Enabled / disabled via `tamagotchi server enable|disable`.
+// Enabled / disabled via `gochi server enable|disable`.
 
 import { createServer, request as httpRequest } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { DAEMON_SOCKET } from "./ipc";
 
-export const SERVER_PORT = Number(process.env.TAMAGOTCHI_PORT) || 7474;
+export const SERVER_PORT = Number(process.env.GOCHI_PORT) || 7474;
 export const SERVER_VERSION = "0.1.0";
 
 function log(...args: unknown[]): void {
@@ -50,7 +50,7 @@ export async function runServer(): Promise<void> {
           ok: false,
           connected: false,
           message:
-            "daemon not reachable. Run `tamagotchi setup` (one-time) if you haven't.",
+            "daemon not reachable. Run `gochi setup` (one-time) if you haven't.",
         },
         502,
       );

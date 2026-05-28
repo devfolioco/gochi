@@ -68,7 +68,7 @@ export type IpcResult = {
 
 // One-shot HTTP request to the daemon over its Unix socket. The HTTP
 // frontend uses this for proxying; the CLI uses it as its default
-// transport (with a TCP fallback when TAMAGOTCHI_URL is set).
+// transport (with a TCP fallback when GOCHI_URL is set).
 export function daemonRequest(
   method: "GET" | "POST",
   path: string,

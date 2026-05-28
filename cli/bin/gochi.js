@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// tamagotchi — Node wrapper that runs the TypeScript CLI via tsx.
+// gochi — Node wrapper that runs the TypeScript CLI via tsx.
 //
-// This file just exists so the global `tamagotchi` symlink is a plain
+// This file just exists so the global `gochi` symlink is a plain
 // JS entry that any Node install can execute. It spawns a child Node
 // process with tsx loading src/cli.ts (Bun was the original plan, but
 // the `serialport` native module hits an unsupported libuv function

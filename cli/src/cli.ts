@@ -1,18 +1,18 @@
-// cli.ts — CLI entry point (invoked by ../bin/tamagotchi.js via tsx).
+// cli.ts — CLI entry point (invoked by ../bin/gochi.js via tsx).
 //
 // User-facing surface:
-//   tamagotchi setup                  one-time install (daemon + HTTP frontend)
-//   tamagotchi face|mood|text|image   drive the pet (talks to daemon via UDS)
-//   tamagotchi ping|health            liveness / status
-//   tamagotchi get|list               queries
-//   tamagotchi server enable          turn HTTP frontend on (default after setup)
-//   tamagotchi server disable         turn HTTP frontend off
-//   tamagotchi server status          HTTP frontend state
-//   tamagotchi daemon status          daemon state
+//   gochi setup                  one-time install (daemon + HTTP frontend)
+//   gochi face|mood|text|image   drive the pet (talks to daemon via UDS)
+//   gochi ping|health            liveness / status
+//   gochi get|list               queries
+//   gochi server enable          turn HTTP frontend on (default after setup)
+//   gochi server disable         turn HTTP frontend off
+//   gochi server status          HTTP frontend state
+//   gochi daemon status          daemon state
 //
-// Internal (invoked by launchd plists):
-//   tamagotchi daemon run             foreground daemon process
-//   tamagotchi server run             foreground HTTP frontend process
+// Internal (invoked by launchd plists / systemd units / Task Scheduler):
+//   gochi daemon run             foreground daemon process
+//   gochi server run             foreground HTTP frontend process
 
 import { select } from "@inquirer/prompts";
 import { Command } from "commander";
@@ -34,7 +34,7 @@ const MOODS = ["content", "playful", "grumpy", "sleepy", "affectionate"];
 
 const program = new Command();
 program
-  .name("tamagotchi")
+  .name("gochi")
   .description("Drive the Tamagotchi desk pet over USB serial.")
   .version(VERSION, "-v, --version");
 

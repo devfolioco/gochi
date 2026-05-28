@@ -29,17 +29,17 @@ db:
 flash: build upload
 
 ## upload        — upload the last build without recompiling.
-##                  If the tamagotchi daemon is running it is holding the
+##                  If the gochi daemon is running it is holding the
 ##                  serial port; we ask it to release the port before the
 ##                  upload and reacquire on exit (success or failure).
 upload:
 	@_paused=0; \
-	if command -v tamagotchi >/dev/null 2>&1 && launchctl list com.tamagotchi.daemon >/dev/null 2>&1; then \
+	if command -v gochi >/dev/null 2>&1 && launchctl list com.tamagotchi.daemon >/dev/null 2>&1; then \
 	  _paused=1; \
-	  echo "→ tamagotchi stop (releasing serial port)"; \
-	  tamagotchi stop >/dev/null; \
+	  echo "→ gochi stop (releasing serial port)"; \
+	  gochi stop >/dev/null; \
 	fi; \
-	trap '[ "$$_paused" = 1 ] && echo "→ tamagotchi start (reacquiring)" && tamagotchi start >/dev/null' EXIT; \
+	trap '[ "$$_paused" = 1 ] && echo "→ gochi start (reacquiring)" && gochi start >/dev/null' EXIT; \
 	$(ARDUINO) upload --fqbn $(FQBN) --port $(PORT) --input-dir $(BUILD) $(SKETCH)
 
 ## monitor       — open the serial monitor (Ctrl-C to exit)

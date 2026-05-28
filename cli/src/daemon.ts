@@ -6,7 +6,7 @@
 // reverse-proxy on top of this.
 //
 // Why not just merge daemon + HTTP server? Two reasons: (1) the HTTP
-// listener is opt-in via `tamagotchi server enable/disable`, but the
+// listener is opt-in via `gochi server enable/disable`, but the
 // daemon must always run if the device is to be usable; (2) keeping the
 // kernel-facing serial code in one process means there's a single owner
 // of /dev/cu.usbmodem* with no possibility of contention.
@@ -14,7 +14,7 @@
 import { chmodSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
-import { watchDevices } from "./discovery";
+import { watchDevices, type DiscoveryHandle } from "./discovery";
 import {
   DAEMON_SOCKET,
   clearStaleSocket,
@@ -33,8 +33,13 @@ class Device {
   private connecting = false;
   // When stopped, the daemon releases the serial port and refuses to
   // open any new ones. Used for arduino-cli flashing — see
-  // `tamagotchi stop` and the firmware Makefile.
+  // `gochi stop` and the firmware Makefile.
   private stopped = false;
+  // Set by runDaemon() after the watcher is created. The Device uses
+  // it to force a re-emit of attach events on `start()` — without that,
+  // a stop/start cycle leaves the port listed-but-not-opened and the
+  // diff-based watcher has no edge to reconnect on.
+  discovery: DiscoveryHandle | null = null;
 
   isConnected(): boolean {
     return !!this.transport?.isOpen();
@@ -62,7 +67,11 @@ class Device {
   start(): void {
     if (!this.stopped) return;
     this.stopped = false;
-    log("started (will reconnect on next discovery tick)");
+    log("started (rescanning for devices)");
+    // Force the watcher to re-emit attach for every currently listed
+    // device. Otherwise stop/start with the device still plugged in
+    // would leave us idle until the next physical re-plug.
+    void this.discovery?.rescan();
   }
 
   async attach(path: string): Promise<void> {
@@ -150,6 +159,7 @@ export async function runDaemon(): Promise<void> {
     if (e.type === "attach") void device.attach(e.path);
     else device.detach(e.path);
   });
+  device.discovery = watcher;
 
   const sendCmd = async (res: ServerResponse, line: string): Promise<void> => {
     if (!device.isConnected()) {
