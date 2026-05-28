@@ -102,12 +102,8 @@ void setup() {
     motion::begin();
   }
 
-  // The on-board BOOT button cycles expressions. The 3 external button
-  // pins are wired but unused — configured so they start in a known state.
+  // The on-board BOOT button cycles expressions.
   pinMode(PIN_BTN_BOOT, INPUT_PULLUP);
-  pinMode(PIN_BTN_A, INPUT_PULLUP);
-  pinMode(PIN_BTN_B, INPUT_PULLUP);
-  pinMode(PIN_BTN_C, INPUT_PULLUP);
 
   currentMode->onEnter(viewManager);
 #if FREE_MODE_ENABLED
