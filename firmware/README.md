@@ -45,7 +45,7 @@ case-insensitive. Receiving any command switches the pet to Desktop Mode.
 Anything unrecognized returns `ERR unknown command`.
 
 Expressions: `neutral`, `happy`, `sad`, `sleepy`, `excited`, `surprised`,
-`angry`, `blink`, `love`, `horny`, `shy`, `dead`.
+`angry`, `blink`, `love`, `sexy`, `shy`, `dead`.
 
 Moods: `content`, `playful`, `grumpy`, `sleepy`, `affectionate`.
 
@@ -63,7 +63,7 @@ Each mood has a pool of expressions the pet tends to show:
 
 It picks a fresh expression every ~10–17 s, and every ~45–90 s the mood
 may drift to a new one (a gentle random walk, with `content` as home).
-`SET mood` sets the mood; it keeps drifting afterward. `horny` and `dead`
+`SET mood` sets the mood; it keeps drifting afterward. `sexy` and `dead`
 are kept out of the autonomous rotation — they are manual-only.
 
 ## The image view

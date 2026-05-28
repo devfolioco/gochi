@@ -38,7 +38,7 @@ const FACES = [
   "angry",
   "blink",
   "love",
-  "horny",
+  "sexy",
   "shy",
   "dead",
 ];

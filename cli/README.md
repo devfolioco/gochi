@@ -91,7 +91,7 @@ gochi test imu           # lift + shake the device, verify the face reacts
 gochi test all           # run them all in order
 ```
 
-Faces: `neutral happy sad sleepy excited surprised angry blink love horny shy dead`.
+Faces: `neutral happy sad sleepy excited surprised angry blink love sexy shy dead`.
 Moods: `content playful grumpy sleepy affectionate`.
 
 The CLI talks to the daemon over `~/.tamagotchi/daemon.sock` by default.

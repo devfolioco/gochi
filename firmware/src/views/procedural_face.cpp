@@ -62,7 +62,7 @@ int gazeAmpFor(ExpressionId e) {
       return 4;
     case ExpressionId::Blink:
       return 3;
-    case ExpressionId::Horny:
+    case ExpressionId::Sexy:
       return 5;  // a sly sidelong glance
     case ExpressionId::Shy:
       return 7;  // timid glances
@@ -403,7 +403,7 @@ void ProceduralFace::render(Renderer& r) {
       drawBlush(r, erx + 7, ey + 13);
       break;
     }
-    case ExpressionId::Horny: {
+    case ExpressionId::Sexy: {
       // Heavy-lidded "bedroom" eyes (a round eye with its top erased to
       // leave a flat-topped slit, finished with a thick eyelid line),
       // paired with a tight, focused bite — upper teeth clamped onto a

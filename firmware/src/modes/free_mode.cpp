@@ -13,7 +13,7 @@
 namespace {
 
 // Each mood's expression pool — what the pet tends to show. Repeated
-// entries are weighted heavier. `horny` and `dead` are deliberately left
+// entries are weighted heavier. `sexy` and `dead` are deliberately left
 // out of autonomous rotation; they stay manual-only (SHOW face ...).
 const ExpressionId CONTENT[] = {ExpressionId::Neutral, ExpressionId::Neutral, ExpressionId::Happy,
                                 ExpressionId::Blink};

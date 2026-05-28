@@ -20,7 +20,7 @@ enum class ExpressionId : uint8_t {
   Angry,
   Blink,
   Love,
-  Horny,
+  Sexy,
   Shy,
   Dead,
   Count  // sentinel: number of expressions, not an expression itself

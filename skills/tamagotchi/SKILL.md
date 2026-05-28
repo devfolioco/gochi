@@ -84,7 +84,7 @@ Offline:
 
 ## 4. Valid values
 
-**Faces:** `neutral`, `happy`, `sad`, `sleepy`, `excited`, `surprised`, `angry`, `blink`, `love`, `horny`, `shy`, `dead`
+**Faces:** `neutral`, `happy`, `sad`, `sleepy`, `excited`, `surprised`, `angry`, `blink`, `love`, `sexy`, `shy`, `dead`
 
 **Moods:** `content`, `playful`, `grumpy`, `sleepy`, `affectionate`
 

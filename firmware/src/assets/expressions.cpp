@@ -15,7 +15,7 @@ const Expression EXPRESSIONS[] = {
     {ExpressionId::Sad, "sad"},         {ExpressionId::Sleepy, "sleepy"},
     {ExpressionId::Excited, "excited"}, {ExpressionId::Surprised, "surprised"},
     {ExpressionId::Angry, "angry"},     {ExpressionId::Blink, "blink"},
-    {ExpressionId::Love, "love"},       {ExpressionId::Horny, "horny"},
+    {ExpressionId::Love, "love"},       {ExpressionId::Sexy, "sexy"},
     {ExpressionId::Shy, "shy"},         {ExpressionId::Dead, "dead"},
 };
 

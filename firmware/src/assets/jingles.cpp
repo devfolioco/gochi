@@ -22,8 +22,8 @@ const Tone ANGRY[] = {{690, 42}, {760, 36}, {0, 22}, {700, 40},  {780, 34},
 const Tone BLINK[] = {{1840, 30}, {0, 16}, {1360, 24}};  // tiny optical tick
 const Tone LOVE[] = {{760, 72}, {0, 28},    {1120, 74}, {0, 24},    {1620, 82},
                      {0, 30},   {2260, 86}, {0, 22},    {3160, 42}, {2540, 128}};
-const Tone HORNY[] = {{900, 44}, {0, 32},    {1450, 46}, {0, 26},   {2050, 68},
-                      {0, 38},   {1720, 56}, {0, 24},    {2380, 92}};
+const Tone SEXY[] = {{900, 44}, {0, 32},    {1450, 46}, {0, 26},   {2050, 68},
+                     {0, 38},   {1720, 56}, {0, 24},    {2380, 92}};
 const Tone SHY[] = {{820, 50}, {0, 92}, {1160, 44}, {0, 64}, {1480, 70}};
 const Tone DEAD[] = {{1260, 210}, {0, 88}, {940, 240}, {0, 110}, {690, 280}, {520, 360}};
 
@@ -52,8 +52,8 @@ Jingle jingleFor(ExpressionId id) {
       return make(BLINK);
     case ExpressionId::Love:
       return make(LOVE);
-    case ExpressionId::Horny:
-      return make(HORNY);
+    case ExpressionId::Sexy:
+      return make(SEXY);
     case ExpressionId::Shy:
       return make(SHY);
     case ExpressionId::Dead:
