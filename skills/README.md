@@ -2,7 +2,7 @@
 
 This folder ships an [agentskills.io](https://agentskills.io/)-compliant `SKILL.md` that teaches an AI coding agent how to drive the physical tamagotchi over its locally installed CLI or its background HTTP server (`http://localhost:7474`).
 
-- Source: [`skills/tamagotchi/SKILL.md`](https://github.com/prathamVaidya/tamagotchi/blob/main/skills/tamagotchi/SKILL.md)
+- Source: [`skills/tamagotchi/SKILL.md`](https://github.com/devfolioco/gochi/blob/main/skills/tamagotchi/SKILL.md)
 - Triggers on explicit commands ("tamagotchi face happy", "set mood playful", "show text on the tamagotchi") and optionally on task outcomes (build pass → happy, fail → sad, long wait → sleepy).
 
 Install the [`gochi` CLI](../cli) first so the skill has something to talk to. The skill itself follows the open `SKILL.md` spec — a single markdown file with YAML frontmatter — so it works in every agent that implements the standard.
@@ -13,14 +13,14 @@ Use [`npx skills`](https://github.com/vercel-labs/skills) — the universal inst
 
 ```sh
 # project-local: writes into ./.<agent>/skills/ for every agent it finds
-npx skills add prathamVaidya/tamagotchi
+npx skills add devfolioco/gochi
 
 # global: writes into ~/.<agent>/skills/ so every project sees it
-npx skills add prathamVaidya/tamagotchi -g
+npx skills add devfolioco/gochi -g
 
 # target a specific agent (or several)
-npx skills add prathamVaidya/tamagotchi -a claude-code
-npx skills add prathamVaidya/tamagotchi -a claude-code -a openclaw -a hermes-agent -g
+npx skills add devfolioco/gochi -a claude-code
+npx skills add devfolioco/gochi -a claude-code -a openclaw -a hermes-agent -g
 ```
 
 That's the whole install. Restart the agent (or open a new session) and the `tamagotchi` skill is discovered automatically. Update later with `npx skills update tamagotchi`, list with `npx skills list`, remove with `npx skills remove tamagotchi`.
@@ -42,19 +42,19 @@ For other agents (Codex, Cursor, opencode, Cline, Gemini CLI, etc. — 50+ suppo
 If you'd rather not run `npx`, clone the repo and symlink the skill folder yourself.
 
 ```sh
-git clone https://github.com/prathamVaidya/tamagotchi.git ~/src/tamagotchi
+git clone https://github.com/devfolioco/gochi.git ~/src/gochi
 
 # Claude Code (global)
 mkdir -p ~/.claude/skills
-ln -s ~/src/tamagotchi/skills/tamagotchi ~/.claude/skills/tamagotchi
+ln -s ~/src/gochi/skills/tamagotchi ~/.claude/skills/tamagotchi
 
 # OpenClaw (global)
 mkdir -p ~/.openclaw/skills
-ln -s ~/src/tamagotchi/skills/tamagotchi ~/.openclaw/skills/tamagotchi
+ln -s ~/src/gochi/skills/tamagotchi ~/.openclaw/skills/tamagotchi
 
 # Hermes Agent (global)
 mkdir -p ~/.hermes/skills
-ln -s ~/src/tamagotchi/skills/tamagotchi ~/.hermes/skills/tamagotchi
+ln -s ~/src/gochi/skills/tamagotchi ~/.hermes/skills/tamagotchi
 ```
 
 A symlink means `git pull` updates the skill for every agent at once. Use `cp -r` instead if your shell or agent doesn't follow symlinks.
