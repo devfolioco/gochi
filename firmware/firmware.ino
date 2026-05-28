@@ -1,11 +1,14 @@
 // firmware.ino — Tamagotchi firmware entry point (ESP32-C3 SuperMini).
 //
-// The pet boots into Desktop Mode (Free Mode is currently disabled — flip
-// FREE_MODE_ENABLED to 1 to restore autonomous expression/mood drift).
-// It reacts to: serial commands, BOOT-button taps, and IMU motion
-// (pickup → surprised, shake → sad). Motion-triggered faces auto-revert
-// to neutral after IMU_FACE_HOLD_MS. The buzzer jingles on every face
-// change in Desktop Mode. See firmware/README.
+// The pet boots into Free Mode and lives on its own — it wanders through
+// moods and shows matching expressions. Any serial command, BOOT-button
+// tap, or IMU gesture hands control to Desktop Mode; ~60 s with no
+// further input drifts back to Free Mode. IMU gestures take priority
+// over everything: pickup → surprised, shake → sad, and they preempt
+// whatever Free Mode was showing. After IMU_FACE_HOLD_MS the pet "calms
+// down" — if Free Mode is on, control hands back so it picks a fresh
+// mood-appropriate face; otherwise the face reverts to neutral. The
+// buzzer jingles on every face change in Desktop Mode. See firmware/README.
 
 #include "src/assets/expressions.h"
 #include "src/assets/jingles.h"
@@ -22,11 +25,11 @@
 #include "src/transport.h"
 #include "src/views/view_manager.h"
 
-// Flip to 1 to re-enable Free Mode: the pet wanders through moods and
-// expressions on its own, and Desktop Mode drifts back here after ~60 s
-// idle. Disabled for now — the pet sits in Desktop Mode forever, showing
-// only what host commands / BOOT taps / IMU gestures put on it.
-#define FREE_MODE_ENABLED 0
+// Flip to 0 to disable Free Mode: the pet sits in Desktop Mode forever
+// and only reacts to host commands / BOOT taps / IMU gestures (the
+// motion-triggered face reverts to neutral after IMU_FACE_HOLD_MS
+// instead of handing back to autonomous behaviour).
+#define FREE_MODE_ENABLED 1
 
 // The pet's mood — shared between the modes: SET mood writes it, Free Mode
 // reads and slowly evolves it. RAM-only (a reboot resets it to content).
@@ -156,13 +159,19 @@ void loop() {
   }
 
   // Calm-down timer: if motion set the face and the hold has elapsed,
-  // revert to neutral. The `current face still matches` guard means a
+  // hand control back. The `current face still matches` guard means a
   // serial command or BOOT-button tap during the hold cancels the
-  // revert — we don't overwrite the user's choice with neutral.
+  // revert — we don't overwrite the user's choice.
   if (imuFaceExpiryMs != 0 && (int32_t)(now - imuFaceExpiryMs) >= 0) {
     imuFaceExpiryMs = 0;
     if (viewManager.face().expression() == imuSetFace) {
+#if FREE_MODE_ENABLED
+      // Hand back to Free Mode so the pet resumes living on its own
+      // instead of freezing on neutral until the 60 s idle timer fires.
+      setMode(freeMode);
+#else
       viewManager.face().setExpression(ExpressionId::Neutral);
+#endif
     }
     imuSetFace = ExpressionId::Count;
   }

@@ -41,7 +41,7 @@ constexpr uint32_t PICKUP_HOLD_MS = 250;
 // SHAKE_PEAK_G is intentionally close to PICKUP_G (1.25 g); the two
 // stay distinct because pickup needs *sustained* low-pass magnitude
 // while shake needs *oscillating* peaks with sign flips.
-constexpr float SHAKE_PEAK_G = 1.2f;
+constexpr float SHAKE_PEAK_G = 0.6f;
 constexpr uint32_t SHAKE_WINDOW_MS = 800;
 constexpr uint8_t SHAKE_CROSSINGS = 3;
 
