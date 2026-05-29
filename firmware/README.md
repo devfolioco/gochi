@@ -82,6 +82,11 @@ own idle motion (a sliding tear, floating `Z`s, a tremble, pulsing
 hearts, ...). Changing expression plays a blink — eyes close, the new
 face swaps in, eyes reopen. Text wider than the screen scrolls.
 
+If the panel is mounted upside-down, the entire output (face + text +
+image view) can be rotated 180° at compile time via the
+`ROTATED_DISPLAY` knob — see the "Build-time configuration" section
+in the project README.
+
 ## The buzzer
 
 A passive piezo buzzer on **GPIO10** plays a short jingle matching the

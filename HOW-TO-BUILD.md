@@ -175,6 +175,15 @@ if you can see it. If you get `0x3C is present` but no pixels light
 up, the panel itself is dead (wrong VCC, blown driver IC) — address
 ACK happens at the bus level before any pixels are drawn.
 
+> 🔁 **Panel mounted upside-down?** If the text reads inverted (e.g.
+> your enclosure puts the SDA/SCL pins at the bottom instead of the
+> top), rotate the output 180° at compile time: copy `.env.example`
+> to `.env` at the repo root and set `ROTATED_DISPLAY=1`, then
+> reflash. The Makefile honors `.env` for both the main firmware and
+> `make test-oled`, so you can verify the new orientation with the
+> test sketch before flashing the real firmware. See the
+> "Build-time configuration" section in the project README.
+
 ## Step 3 — Buzzer
 
 The buzzer is the simplest part: two wires, one to `GPIO10`, one to

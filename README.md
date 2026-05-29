@@ -54,6 +54,27 @@ plane reacting to roll / pitch plus live numeric values for all six
 axes. See [`firmware/tests/README.md`](firmware/tests/README.md) for
 details.
 
+## Build-time configuration (`.env`)
+
+A few build-time knobs live in a user-local `.env` at the repo root.
+The Makefile `-include`s it automatically and translates each
+supported `KEY=VALUE` pair into a `-D<KEY>=<value>` compiler flag,
+applied to **every** compile — main firmware and bring-up tests
+alike. `.env` is gitignored; the committed template is `.env.example`.
+
+```sh
+cp .env.example .env       # then edit
+make test-oled             # verify the new settings on the panel
+make flash                 # main firmware picks them up too
+```
+
+| Variable           | Effect                                                              | Default |
+| ------------------ | ------------------------------------------------------------------- | ------- |
+| `ROTATED_DISPLAY`  | `=1` flips the OLED 180° (`U8G2_R2`) — for upside-down mounted panels | `0`     |
+
+Format: plain `KEY=value`, one per line — no quotes, no `export`,
+`#`-prefixed lines are comments. See [`.env.example`](.env.example).
+
 ## Linting & formatting
 
 - **Formatting** — `clang-format`, configured in `.clang-format` (Google style,
