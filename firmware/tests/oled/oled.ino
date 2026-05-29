@@ -17,7 +17,15 @@
 // full-frame-buffer, NONAME variant (defaults to address 0x3C), hardware
 // I2C with explicit SCL/SDA pins so the ESP32-C3 GPIO matrix routes the
 // peripheral to the SuperMini's broken-out pins.
+//
+// Honors the same ROTATED_DISPLAY build-time switch as the main
+// firmware (set via `.env` → ROTATED_DISPLAY=1 at the project root),
+// so verifying orientation here means the main firmware will match.
+#ifdef ROTATED_DISPLAY
+static U8G2_SSD1306_128X64_NONAME_F_HW_I2C oled(U8G2_R2, U8X8_PIN_NONE, PIN_SCL, PIN_SDA);
+#else
 static U8G2_SSD1306_128X64_NONAME_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE, PIN_SCL, PIN_SDA);
+#endif
 
 static const uint32_t FRAME_MS = 1500;
 static const char* FRAMES[] = {

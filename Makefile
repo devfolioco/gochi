@@ -28,16 +28,29 @@ else
   OPEN := cmd //c start
 endif
 
+# User-local build configuration. `.env` is gitignored — copy
+# `.env.example` to `.env` and edit it. Each supported KEY=VALUE pair
+# in .env is translated to a -D<KEY>=<value> compiler flag and applied
+# to every compile invocation below (main firmware + tests).
+-include .env
+
+EXTRA_DEFINES :=
+ifeq ($(ROTATED_DISPLAY),1)
+  EXTRA_DEFINES += -DROTATED_DISPLAY=1
+endif
+# Empty when no flags are set, so arduino-cli keeps its defaults.
+BUILD_PROPS := $(if $(strip $(EXTRA_DEFINES)),--build-property "build.extra_flags=$(EXTRA_DEFINES)",)
+
 .PHONY: build db flash upload monitor flash-monitor ports format format-check clean
 .PHONY: test-led test-oled test-buzzer test-mpu
 
 ## build         — compile the sketch
 build:
-	$(ARDUINO) compile --fqbn $(FQBN) --build-path $(BUILD) $(SKETCH)
+	$(ARDUINO) compile --fqbn $(FQBN) $(BUILD_PROPS) --build-path $(BUILD) $(SKETCH)
 
 ## db            — regenerate build/compile_commands.json for clangd (Zed)
 db:
-	$(ARDUINO) compile --fqbn $(FQBN) --build-path $(BUILD) --only-compilation-database $(SKETCH)
+	$(ARDUINO) compile --fqbn $(FQBN) $(BUILD_PROPS) --build-path $(BUILD) --only-compilation-database $(SKETCH)
 
 ## flash         — compile, then upload to the board
 flash: build upload
@@ -85,17 +98,17 @@ clean:
 
 ## test-led       — compile + flash the LED-blink bring-up test
 test-led:
-	$(ARDUINO) compile --fqbn $(FQBN) --build-path firmware/tests/led/build firmware/tests/led
+	$(ARDUINO) compile --fqbn $(FQBN) $(BUILD_PROPS) --build-path firmware/tests/led/build firmware/tests/led
 	$(ARDUINO) upload  --fqbn $(FQBN) --port $(PORT) --input-dir firmware/tests/led/build firmware/tests/led
 
 ## test-oled      — compile + flash the OLED bring-up test
 test-oled:
-	$(ARDUINO) compile --fqbn $(FQBN) --build-path firmware/tests/oled/build firmware/tests/oled
+	$(ARDUINO) compile --fqbn $(FQBN) $(BUILD_PROPS) --build-path firmware/tests/oled/build firmware/tests/oled
 	$(ARDUINO) upload  --fqbn $(FQBN) --port $(PORT) --input-dir firmware/tests/oled/build firmware/tests/oled
 
 ## test-buzzer    — compile + flash the buzzer bring-up test
 test-buzzer:
-	$(ARDUINO) compile --fqbn $(FQBN) --build-path firmware/tests/buzzer/build firmware/tests/buzzer
+	$(ARDUINO) compile --fqbn $(FQBN) $(BUILD_PROPS) --build-path firmware/tests/buzzer/build firmware/tests/buzzer
 	$(ARDUINO) upload  --fqbn $(FQBN) --port $(PORT) --input-dir firmware/tests/buzzer/build firmware/tests/buzzer
 
 ## test-mpu       — compile + flash the MPU-6050 streaming test, then
@@ -103,6 +116,6 @@ test-buzzer:
 ##                  Chrome or Edge (Web Serial API). If `gochi` is
 ##                  holding the port, `gochi stop` first.
 test-mpu:
-	$(ARDUINO) compile --fqbn $(FQBN) --build-path firmware/tests/mpu/build firmware/tests/mpu
+	$(ARDUINO) compile --fqbn $(FQBN) $(BUILD_PROPS) --build-path firmware/tests/mpu/build firmware/tests/mpu
 	$(ARDUINO) upload  --fqbn $(FQBN) --port $(PORT) --input-dir firmware/tests/mpu/build firmware/tests/mpu
 	@$(OPEN) firmware/tests/mpu/visualize.html
