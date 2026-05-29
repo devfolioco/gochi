@@ -109,8 +109,11 @@ back to Free Mode ~60 s later:
 
 - **Pickup** — sustained |a| above ~1.25 g for 250 ms (a brisk lift)
   → **`surprised`** expression. The pet looks anxious about being held.
-- **Shake** — rapid back-and-forth, ≥4 large peaks within 600 ms on any
-  axis → **`sad`** expression. The pet cries (it has a tear animation).
+- **Shake** — sustained kinetic motion over a sliding ~½ s window
+  → **`angry`** expression. The pet is annoyed.
+- **Shake spam** — once the pet has been shaken **3 times within 60 s**,
+  the next shake escalates from `angry` to **`sad`** (it actually cries).
+  The counter naturally resets as the older shakes age out of the window.
 
 After any event the detector goes quiet for 1.5 s, so a single gesture
 fires once instead of a burst. If the MPU-6050 isn't connected, the

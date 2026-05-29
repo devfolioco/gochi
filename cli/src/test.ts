@@ -236,7 +236,7 @@ async function testImu(): Promise<boolean> {
   console.log("  Step 2 of 2:  shake the device back-and-forth firmly for a second.");
   console.log("  (You have ~8 seconds.)");
   await sleep(8000);
-  const shakeOk = await askYesNo("  Did the face change to a teary 'sad' expression?");
+  const shakeOk = await askYesNo("  Did the face change to an 'angry' expression?");
   return shakeOk;
 }
 

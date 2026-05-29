@@ -4,11 +4,12 @@
 // moods and shows matching expressions. Any serial command, BOOT-button
 // tap, or IMU gesture hands control to Desktop Mode; ~60 s with no
 // further input drifts back to Free Mode. IMU gestures take priority
-// over everything: pickup → surprised, shake → sad, and they preempt
-// whatever Free Mode was showing. After IMU_FACE_HOLD_MS the pet "calms
-// down" — if Free Mode is on, control hands back so it picks a fresh
-// mood-appropriate face; otherwise the face reverts to neutral. The
-// buzzer jingles on every face change in Desktop Mode. See firmware/README.
+// over everything: pickup → surprised, shake → angry (escalating to sad
+// after SHAKE_CRY_COUNT shakes within SHAKE_CRY_WINDOW_MS — the pet has
+// had enough). After IMU_FACE_HOLD_MS the pet "calms down" — if Free
+// Mode is on, control hands back so it picks a fresh mood-appropriate
+// face; otherwise the face reverts to neutral. The buzzer jingles on
+// every face change in Desktop Mode. See firmware/README.
 
 #include "src/assets/expressions.h"
 #include "src/assets/jingles.h"
@@ -58,14 +59,24 @@ static ExpressionId jingledExpr = ExpressionId::Count;
 // the flip.
 static const uint32_t IDLE_TO_FREE_MS = 60000;
 
-// IMU-triggered faces (surprised / sad) auto-revert to neutral after
-// this long, so the pet "calms down" instead of staying anxious or sad
+// IMU-triggered faces (surprised / angry / sad) auto-revert to neutral
+// after this long, so the pet "calms down" instead of staying upset
 // forever. Only takes effect if the face hasn't been changed by anything
 // else in the meantime — a serial command or BOOT-button tap during the
 // hold cancels the auto-revert.
 static const uint32_t IMU_FACE_HOLD_MS = 5000;
 static uint32_t imuFaceExpiryMs = 0;                   // 0 = no pending revert
 static ExpressionId imuSetFace = ExpressionId::Count;  // what motion last set
+
+// Shake escalation: a single shake gets `angry`. If the pet has been
+// shaken SHAKE_CRY_COUNT times within SHAKE_CRY_WINDOW_MS, the latest
+// one tips into `sad` instead — the pet has had enough. Ring buffer of
+// the last few shake timestamps; entries older than the window are
+// implicitly stale (we just compare against `now` when counting).
+static const uint32_t SHAKE_CRY_WINDOW_MS = 60000;
+static const uint8_t SHAKE_CRY_COUNT = 3;
+static uint32_t recentShakesMs[SHAKE_CRY_COUNT] = {0};
+static uint8_t recentShakesHead = 0;
 
 // Hand off between modes via the Mode onExit/onEnter hooks.
 static void setMode(Mode& mode) {
@@ -135,10 +146,12 @@ void loop() {
     viewManager.face().setExpression(static_cast<ExpressionId>(next));
   }
 
-  // IMU: pickup → anxious-looking `surprised`; shake → `sad` (cries).
-  // Acts like a BOOT-button tap: hands control to Desktop Mode, resets
-  // the idle timer, snaps to the face view so the reaction is always
-  // visible even if a text/image view was up.
+  // IMU: pickup → anxious-looking `surprised`; shake → `angry` (the pet
+  // is annoyed), escalating to `sad` (it actually cries) once shaken
+  // SHAKE_CRY_COUNT times within SHAKE_CRY_WINDOW_MS. Acts like a BOOT-
+  // button tap: hands control to Desktop Mode, resets the idle timer,
+  // snaps to the face view so the reaction is always visible even if a
+  // text/image view was up.
   if (imu::isReady()) {
     imu::Sample s;
     if (imu::read(s)) {
@@ -147,8 +160,27 @@ void loop() {
         lastCmdMs = now;
         setMode(desktopMode);
         viewManager.setView(&viewManager.face());
-        ExpressionId target =
-            (ev == motion::Event::Pickup) ? ExpressionId::Surprised : ExpressionId::Sad;
+
+        ExpressionId target;
+        if (ev == motion::Event::Pickup) {
+          target = ExpressionId::Surprised;
+        } else {
+          // Record this shake into the ring buffer of recent shakes,
+          // then count how many of the last SHAKE_CRY_COUNT entries
+          // fall inside the window. >= SHAKE_CRY_COUNT means the pet
+          // has been mistreated enough to cry; otherwise it's just
+          // annoyed.
+          recentShakesMs[recentShakesHead] = now;
+          recentShakesHead = (recentShakesHead + 1) % SHAKE_CRY_COUNT;
+          uint8_t recent = 0;
+          for (uint8_t i = 0; i < SHAKE_CRY_COUNT; ++i) {
+            if (recentShakesMs[i] != 0 && (now - recentShakesMs[i]) <= SHAKE_CRY_WINDOW_MS) {
+              ++recent;
+            }
+          }
+          target = (recent >= SHAKE_CRY_COUNT) ? ExpressionId::Sad : ExpressionId::Angry;
+        }
+
         viewManager.face().setExpression(target);
         // Schedule the calm-down: in IMU_FACE_HOLD_MS we'll revert to
         // neutral, unless something else has changed the face by then.
