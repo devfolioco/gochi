@@ -27,8 +27,19 @@ Specifically:
 - `gochi ping` returns `PONG`. This confirms the host can talk to the
   board over USB before you add anything else.
 
-If `gochi ping` fails, fix that first — none of the hardware tests
+If `gochi ping` fails, fix that first — none of the `gochi …` tests
 below will work without it.
+
+> **Alternative if you don't have `gochi` yet:** every step below also
+> has a standalone test sketch under `firmware/tests/` that flashes
+> over the main firmware and exercises just that one component. Flash
+> them with `make test-led`, `make test-oled`, `make test-buzzer`,
+> `make test-mpu`. They share the same `config.h` pin map, so wiring
+> verified by a test sketch is automatically wiring that will work
+> with the real firmware. `make test-mpu` even opens a live browser
+> viewer (Chrome / Edge) that draws a 3D plane reacting to tilt — the
+> most satisfying way to confirm the IMU is alive. Reflash the main
+> firmware (`make flash`) when you're done.
 
 ## Bill of materials
 

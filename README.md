@@ -34,6 +34,26 @@ arduino-cli --config-file firmware/arduino-cli.yaml core install esp32:esp32
 | `make ports`        | List connected boards                         |
 | `make clean`        | Delete build artifacts                        |
 
+### Hardware bring-up tests
+
+Four standalone sketches under `firmware/tests/` for verifying each
+peripheral on its own — useful when bringing up a fresh board or
+chasing a hardware fault, and they don't need the `gochi` CLI / daemon
+installed. Each one compiles + flashes in a single target:
+
+| Command          | What it does                                                 |
+| ---------------- | ------------------------------------------------------------ |
+| `make test-led`  | Blinks `LED_BUILTIN` at 1 Hz                                 |
+| `make test-oled` | Cycles four frames on the SSD1306                            |
+| `make test-buzzer` | Plays a C5-major scale on the piezo                        |
+| `make test-mpu`  | Streams MPU-6050 samples **and** opens a live browser viewer |
+
+`make test-mpu` also opens `firmware/tests/mpu/visualize.html` — a
+single-page Web Serial viewer (Chrome / Edge only) that draws a 3D
+plane reacting to roll / pitch plus live numeric values for all six
+axes. See [`firmware/tests/README.md`](firmware/tests/README.md) for
+details.
+
 ## Linting & formatting
 
 - **Formatting** — `clang-format`, configured in `.clang-format` (Google style,
