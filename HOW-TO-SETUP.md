@@ -36,6 +36,10 @@ Whatever host you're on, you'll need:
   - **Bun** (preferred — what the project's `bun.lock` is generated against).
   - **Node 18+** with **npm** (also works; you can replace `bun` with `npm`
     in the commands below).
+- **`clang-format`** — used by `make format` and `make format-check`.
+  Not strictly required to build the firmware, but the Makefile lists
+  those targets and the pre-commit / CI workflow assumes it's there, so
+  install it now to avoid the "clang-format: command not found" surprise.
 - **About 1 GB free disk** — the ESP32 core unpacks to ~500 MB.
 - **A USB cable that carries data** (not power-only) once you get to
   flashing.
@@ -59,9 +63,7 @@ xcode-select --install
 # Toolchain
 brew install arduino-cli
 brew install oven-sh/bun/bun     # or: brew install node
-
-# Optional but recommended
-brew install clang-format         # for `make format`
+brew install clang-format        # used by `make format` / `make format-check`
 ```
 
 Skip ahead to [**Shared setup**](#shared-setup-clone--install--build).
@@ -76,11 +78,15 @@ way; substitute your package manager.
 ```sh
 # Ubuntu / Debian
 sudo apt update
-sudo apt install -y git make curl build-essential
+sudo apt install -y git make curl build-essential clang-format
 
 # Fedora
-sudo dnf install -y git make curl gcc-c++
+sudo dnf install -y git make curl gcc-c++ clang-tools-extra
 ```
+
+(`clang-format` is a stand-alone package on Debian/Ubuntu but lives
+inside `clang-tools-extra` on Fedora — both give you the same binary
+on your `PATH`.)
 
 ### `arduino-cli`
 
@@ -139,6 +145,7 @@ Easiest: install via [winget](https://learn.microsoft.com/en-us/windows/package-
 winget install --id Git.Git
 winget install --id ArduinoSA.CLI
 winget install --id Oven-sh.Bun       # or: winget install OpenJS.NodeJS.LTS
+winget install --id LLVM.LLVM         # provides clang-format
 ```
 
 If `winget` isn't available, download the installers manually:
@@ -146,6 +153,7 @@ If `winget` isn't available, download the installers manually:
 - arduino-cli: <https://github.com/arduino/arduino-cli/releases> (pick the
   Windows zip, extract `arduino-cli.exe` into a folder on your `PATH`)
 - Bun: <https://bun.sh/install>
+- LLVM (includes `clang-format.exe`): <https://releases.llvm.org/>
 
 ### USB driver
 
@@ -336,6 +344,7 @@ Those all need a USB-connected board. They're covered in
 | Symptom | Fix |
 |---------|-----|
 | `arduino-cli: command not found` | `~/bin` (Linux) or Bun's install dir isn't on `PATH`. Open a fresh shell, or re-run the install script's `PATH` line. |
+| `clang-format: command not found` on `make format` | Install it. Linux: `sudo apt install clang-format` (Debian/Ubuntu) or `sudo dnf install clang-tools-extra` (Fedora). macOS: `brew install clang-format`. Windows: `winget install LLVM.LLVM`. |
 | `make build` says `command not found` for `make` | Install `make` (Linux/macOS: usually pre-installed; Windows: `winget install GnuWin32.Make` or use the raw `arduino-cli` command in step 3). |
 | `Error: Platform 'esp32:esp32@3.3.8' not found` | Re-run step 2 — the `core update-index` step is what makes 3.3.8 visible. |
 | `bun: command not found` after install | Either re-open the shell or `source ~/.bashrc` (Bun appends a `PATH` export to your rc file). |
