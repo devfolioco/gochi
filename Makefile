@@ -1,12 +1,23 @@
 # ESP32-C3 SuperMini firmware — arduino-cli wrapper.
 # Override the port if auto-detection picks the wrong one:
-#   make flash PORT=/dev/cu.usbmodemXXXX
+#   make flash PORT=/dev/cu.usbmodemXXXX        (macOS)
+#   make flash PORT=/dev/ttyACM0                (Linux / WSL)
+#   make flash PORT=COM7                        (Windows)
 
 SKETCH := firmware
 FQBN   := esp32:esp32:esp32c3:CDCOnBoot=cdc
 BUILD  := $(SKETCH)/build
 BAUD   := 115200
-PORT   ?= $(shell ls /dev/cu.usbmodem* 2>/dev/null | head -1)
+
+# Best-effort port auto-detect. macOS exposes the board as
+# /dev/cu.usbmodem*, Linux/WSL as /dev/ttyACM*. On Windows the device
+# name is COMx and there's no glob to grep — pass PORT=COMx explicitly,
+# or run `make ports` (which calls `arduino-cli board list`) to find it.
+ifeq ($(OS),Windows_NT)
+  PORT ?=
+else
+  PORT ?= $(shell ls /dev/cu.usbmodem* /dev/ttyACM* 2>/dev/null | head -1)
+endif
 
 # arduino-cli invoked with the project-local config (firmware/arduino-cli.yaml)
 # instead of the global ~/Library/Arduino15 one, so the repo is self-contained.

@@ -28,9 +28,19 @@ import type { Result } from "./client";
 type Component = "serial" | "oled" | "buzzer" | "imu";
 const ORDER: readonly Component[] = ["serial", "oled", "buzzer", "imu"] as const;
 
+// Per-OS "is the board enumerated?" hint. Windows enumerates the board
+// as COMx (no shell glob to grep), so we point at `arduino-cli board
+// list` instead of a non-existent /dev/cu.* path.
+const BOARD_LIST_HINT =
+  process.platform === "win32"
+    ? "Is the board plugged in? `arduino-cli board list` should show it as a COMx port (also visible in Device Manager → Ports)."
+    : process.platform === "darwin"
+      ? "Is the board plugged in? `ls /dev/cu.usbmodem*` should list it."
+      : "Is the board plugged in? `ls /dev/ttyACM*` should list it.";
+
 const TIPS: Record<Component, string[]> = {
   serial: [
-    "Is the board plugged in? `ls /dev/cu.usbmodem*` should list it.",
+    BOARD_LIST_HINT,
     "Is the daemon running? `gochi daemon status` — if not, run `gochi setup`.",
     "Did a recent `make flash` leave the port released? Try `gochi start`.",
     "Hit the RESET button on the board and try again.",

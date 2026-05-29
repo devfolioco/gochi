@@ -175,8 +175,63 @@ If you want the Makefile commands (`make build`, `make flash`):
 winget install GnuWin32.Make
 ```
 
-Otherwise use the raw `arduino-cli` commands shown in the **Shared
-setup** section.
+The Makefile recipes use POSIX-shell syntax (`if`, `trap`, command
+substitution), so they only run cleanly under **Git Bash** or
+**MSYS2** — both ship a `sh.exe` that `make` picks up automatically.
+From plain `cmd.exe` or PowerShell the `flash` / `upload` recipes
+fail with quoting errors; either open a Git Bash shell for those
+commands, or run the raw `arduino-cli` commands shown below.
+
+### Finding your COM port
+
+The Makefile can't glob `/dev/cu.usbmodem*` on Windows, so port
+auto-detection is disabled — you'll pass `PORT=COMx` explicitly to
+every `make flash` (and the raw `arduino-cli upload` below). Two
+ways to find the right COM number:
+
+- **Device Manager** → expand **Ports (COM & LPT)** → look for
+  `USB Serial Device (COMn)` that appears when you plug the board in.
+- **`make ports`** (from Git Bash) or **`arduino-cli --config-file firmware/arduino-cli.yaml board list`**
+  (from any shell) — the SuperMini shows up with VID `303a`
+  (Espressif).
+
+### Raw flash command (no `make` needed)
+
+If you skipped `make`, the `make build` and `make flash` targets
+boil down to two `arduino-cli` calls. Run them from the repo root,
+substituting your COM port:
+
+```powershell
+# build
+arduino-cli --config-file firmware/arduino-cli.yaml compile `
+  --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc `
+  --build-path firmware/build firmware
+
+# upload
+arduino-cli --config-file firmware/arduino-cli.yaml upload `
+  --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc `
+  --port COM7 `
+  --input-dir firmware/build firmware
+```
+
+(Backticks are PowerShell line-continuations; in `cmd.exe` use `^`
+or put it all on one line.)
+
+> ⚠️ **"Access is denied" on upload.** If `arduino-cli upload` fails
+> with `Access is denied` or `the port is busy`, something else has
+> the COM port open. Common culprits:
+> - The **`gochi` daemon** is holding it. Stop it before flashing:
+>   `gochi stop` (or, brute force: `Stop-Process -Name gochi -Force -ErrorAction SilentlyContinue`).
+>   `make flash` on macOS/Linux already does this automatically — on
+>   Windows you have to do it yourself.
+> - **Arduino IDE Serial Monitor**, **VS Code's serial extension**,
+>   **PuTTY**, or any other terminal attached to the same COM port.
+>   Close them.
+> - If nothing obvious is holding it, unplug the USB for ~3 s and
+>   plug it back in to drop any zombie handles. Then re-run upload.
+> - As a last resort, **force download mode**: hold the **BOOT**
+>   button, tap **RESET**, release **BOOT**, then re-run upload
+>   within a couple of seconds.
 
 Skip ahead to [**Shared setup**](#shared-setup-clone--install--build).
 
@@ -350,6 +405,9 @@ Those all need a USB-connected board. They're covered in
 | `bun: command not found` after install | Either re-open the shell or `source ~/.bashrc` (Bun appends a `PATH` export to your rc file). |
 | `tsc` reports `Cannot find module 'node:path'` | You skipped the `bun install` / `npm install` step — `@types/node` is a dev dependency. |
 | `arduino-cli upload` says `permission denied` on Linux | You're not in the `dialout` group, or you didn't log out and back in after `usermod`. |
+| `arduino-cli upload` says `Access is denied` / `the port is busy` on Windows | Something else has the COM port open. Run `gochi stop` (or `Stop-Process -Name gochi -Force`), close Arduino IDE's Serial Monitor / PuTTY / VS Code serial extensions, then retry. If still stuck, unplug USB for ~3 s. Last resort: hold BOOT, tap RESET, release BOOT, then upload. |
+| `make flash` on Windows fails with quoting errors | The recipe uses POSIX shell syntax — run it from **Git Bash** or **MSYS2**, not `cmd.exe` / PowerShell. Alternative: use the raw `arduino-cli upload` command from the [Windows section](#windows-native). |
+| `make flash` on Windows says `no port` | Auto-detection is disabled on Windows. Pass it explicitly: `make flash PORT=COM7` (find it via `make ports` or Device Manager). |
 | WSL doesn't see `/dev/ttyACM0` | `usbipd attach --wsl --busid <id>` from Windows PowerShell — and re-run it after every reboot / replug. |
 | Windows shows "Unknown device" in Device Manager | The ESP32-C3 native USB-CDC driver isn't loaded. On Windows 10 1903+ it should be automatic; older builds need the Espressif driver. |
 
