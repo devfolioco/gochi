@@ -52,7 +52,7 @@ endif
 # Empty when no flags are set, so arduino-cli keeps its defaults.
 BUILD_PROPS := $(if $(strip $(EXTRA_DEFINES)),--build-property "build.extra_flags=$(EXTRA_DEFINES)",)
 
-.PHONY: build db flash upload monitor flash-monitor ports format format-check clean
+.PHONY: build db flash upload erase monitor flash-monitor ports format format-check clean
 .PHONY: test-led test-oled test-buzzer test-mpu
 
 ## build         — compile the sketch
@@ -79,6 +79,40 @@ upload:
 	fi; \
 	trap '[ "$$_paused" = 1 ] && echo "→ gochi start (reacquiring)" && gochi start >/dev/null' EXIT; \
 	$(ARDUINO) upload --fqbn $(FQBN) --port $(PORT) --input-dir $(BUILD) $(SKETCH)
+
+## erase         — wipe the entire flash (factory reset).
+##                  arduino-cli has no built-in erase, so we shell out
+##                  to esptool from the ESP32 core install. Same daemon-
+##                  pause / port-handoff dance as `upload`. The pinned
+##                  core (esp32:esp32@3.3.8) ships esptool v5, hence the
+##                  `erase-flash` subcommand (esptool ≤4 used `erase_flash`).
+erase:
+	@DATA_DIR=$$($(ARDUINO) config get directories.data 2>/dev/null); \
+	if [ -z "$$DATA_DIR" ]; then \
+	  echo "arduino-cli couldn't report its data directory."; exit 1; \
+	fi; \
+	ESPTOOL=$$(ls -1 "$$DATA_DIR"/packages/esp32/tools/esptool_py/*/esptool 2>/dev/null | sort | tail -1); \
+	if [ -z "$$ESPTOOL" ]; then \
+	  echo "esptool not found under $$DATA_DIR/packages/esp32/tools/esptool_py/*."; \
+	  echo "Reinstall the core: arduino-cli --config-file firmware/arduino-cli.yaml core install esp32:esp32@3.3.8"; \
+	  exit 1; \
+	fi; \
+	if [ -z "$(PORT)" ]; then \
+	  echo "No port. Pass it explicitly, e.g."; \
+	  echo "  make erase PORT=/dev/cu.usbmodemXXXX   (macOS)"; \
+	  echo "  make erase PORT=/dev/ttyACM0           (Linux / WSL)"; \
+	  echo "  make erase PORT=COM7                   (Windows; from Git Bash)"; \
+	  exit 1; \
+	fi; \
+	_paused=0; \
+	if command -v gochi >/dev/null 2>&1 && launchctl list com.tamagotchi.daemon >/dev/null 2>&1; then \
+	  _paused=1; \
+	  echo "→ gochi stop (releasing serial port)"; \
+	  gochi stop >/dev/null; \
+	fi; \
+	trap '[ "$$_paused" = 1 ] && echo "→ gochi start (reacquiring)" && gochi start >/dev/null' EXIT; \
+	echo "→ esptool erase-flash on $(PORT)"; \
+	"$$ESPTOOL" --chip esp32c3 --port "$(PORT)" erase-flash
 
 ## monitor       — open the serial monitor (Ctrl-C to exit)
 monitor:

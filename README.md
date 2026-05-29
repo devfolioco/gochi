@@ -26,6 +26,7 @@ arduino-cli --config-file firmware/arduino-cli.yaml core install esp32:esp32
 | ------------------- | --------------------------------------------- |
 | `make build`        | Compile the sketch                            |
 | `make flash`        | Compile + upload to the board                 |
+| `make erase`        | Wipe the entire flash (factory reset)         |
 | `make monitor`      | Open the serial monitor (115200, Ctrl-C exits)|
 | `make flash-monitor`| Flash, then open the monitor                  |
 | `make db`           | Regenerate `compile_commands.json` for Zed    |
