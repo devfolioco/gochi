@@ -27,8 +27,19 @@ Specifically:
 - `gochi ping` returns `PONG`. This confirms the host can talk to the
   board over USB before you add anything else.
 
-If `gochi ping` fails, fix that first — none of the hardware tests
+If `gochi ping` fails, fix that first — none of the `gochi …` tests
 below will work without it.
+
+> **Alternative if you don't have `gochi` yet:** every step below also
+> has a standalone test sketch under `firmware/tests/` that flashes
+> over the main firmware and exercises just that one component. Flash
+> them with `make test-led`, `make test-oled`, `make test-buzzer`,
+> `make test-mpu`. They share the same `config.h` pin map, so wiring
+> verified by a test sketch is automatically wiring that will work
+> with the real firmware. `make test-mpu` even opens a live browser
+> viewer (Chrome / Edge) that draws a 3D plane reacting to tilt — the
+> most satisfying way to confirm the IMU is alive. Reflash the main
+> firmware (`make flash`) when you're done.
 
 ## Bill of materials
 
@@ -163,6 +174,15 @@ It first repeats the `0x3C` check, then writes "Hello" and asks you
 if you can see it. If you get `0x3C is present` but no pixels light
 up, the panel itself is dead (wrong VCC, blown driver IC) — address
 ACK happens at the bus level before any pixels are drawn.
+
+> 🔁 **Panel mounted upside-down?** If the text reads inverted (e.g.
+> your enclosure puts the SDA/SCL pins at the bottom instead of the
+> top), rotate the output 180° at compile time: copy `.env.example`
+> to `.env` at the repo root and set `ROTATED_DISPLAY=1`, then
+> reflash. The Makefile honors `.env` for both the main firmware and
+> `make test-oled`, so you can verify the new orientation with the
+> test sketch before flashing the real firmware. See the
+> "Build-time configuration" section in the project README.
 
 ## Step 3 — Buzzer
 

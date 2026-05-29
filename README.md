@@ -34,6 +34,47 @@ arduino-cli --config-file firmware/arduino-cli.yaml core install esp32:esp32
 | `make ports`        | List connected boards                         |
 | `make clean`        | Delete build artifacts                        |
 
+### Hardware bring-up tests
+
+Four standalone sketches under `firmware/tests/` for verifying each
+peripheral on its own — useful when bringing up a fresh board or
+chasing a hardware fault, and they don't need the `gochi` CLI / daemon
+installed. Each one compiles + flashes in a single target:
+
+| Command          | What it does                                                 |
+| ---------------- | ------------------------------------------------------------ |
+| `make test-led`  | Blinks `LED_BUILTIN` at 1 Hz                                 |
+| `make test-oled` | Cycles four frames on the SSD1306                            |
+| `make test-buzzer` | Plays a C5-major scale on the piezo                        |
+| `make test-mpu`  | Streams MPU-6050 samples **and** opens a live browser viewer |
+
+`make test-mpu` also opens `firmware/tests/mpu/visualize.html` — a
+single-page Web Serial viewer (Chrome / Edge only) that draws a 3D
+plane reacting to roll / pitch plus live numeric values for all six
+axes. See [`firmware/tests/README.md`](firmware/tests/README.md) for
+details.
+
+## Build-time configuration (`.env`)
+
+A few build-time knobs live in a user-local `.env` at the repo root.
+The Makefile `-include`s it automatically and translates each
+supported `KEY=VALUE` pair into a `-D<KEY>=<value>` compiler flag,
+applied to **every** compile — main firmware and bring-up tests
+alike. `.env` is gitignored; the committed template is `.env.example`.
+
+```sh
+cp .env.example .env       # then edit
+make test-oled             # verify the new settings on the panel
+make flash                 # main firmware picks them up too
+```
+
+| Variable           | Effect                                                              | Default |
+| ------------------ | ------------------------------------------------------------------- | ------- |
+| `ROTATED_DISPLAY`  | `=1` flips the OLED 180° (`U8G2_R2`) — for upside-down mounted panels | `0`     |
+
+Format: plain `KEY=value`, one per line — no quotes, no `export`,
+`#`-prefixed lines are comments. See [`.env.example`](.env.example).
+
 ## Linting & formatting
 
 - **Formatting** — `clang-format`, configured in `.clang-format` (Google style,

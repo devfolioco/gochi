@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MPU-6050 viewer</title>
+<!--
+  Live viewer for firmware/tests/mpu/mpu.ino. Opens the USB serial port
+  via Web Serial (Chrome / Edge only — Firefox and Safari don't support
+  it yet), parses the "MPU,ax,ay,az,gx,gy,gz" lines streaming back at
+  ~50 Hz, and renders:
+    – a top-down SVG plane that banks with roll and pitches forward/back,
+      via CSS 3D transforms in a perspective scene,
+    – live numeric values + bipolar bars for all six axes,
+    – a derived pitch / roll readout (accel-only, low-pass filtered).
+
+  Open from the repo root with:  make test-mpu-view
+  (the Make target just runs `open` on this file). If `gochi` is holding
+  the serial port, run `gochi stop` first or the Connect button will
+  fail with a "device busy" error.
+-->
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0c10;
+    --panel: #11141a;
+    --border: #1f2530;
+    --border-strong: #2d3441;
+    --text: #e5e7eb;
+    --muted: #8b93a3;
+    --dim: #5b6473;
+    --accent: #60a5fa;
+    --gyro: #f472b6;
+    --accel: #60a5fa;
+    --good: #34d399;
+    --bad: #f87171;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    grid-template-rows: auto 1fr;
+    gap: 24px;
+    padding: 24px;
+  }
+  @media (max-width: 880px) {
+    body { grid-template-columns: 1fr; }
+  }
+
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1 span { color: var(--text); }
+  .controls { display: flex; gap: 12px; align-items: center; }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font: 13px ui-monospace, "SF Mono", Menlo, monospace;
+    color: var(--muted);
+  }
+  .status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: background 200ms ease;
+  }
+  .status.live .dot { background: var(--good); box-shadow: 0 0 8px var(--good); }
+  .status.error .dot { background: var(--bad); }
+  button {
+    appearance: none;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font: 500 13px/1 inherit;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease;
+  }
+  button:hover { background: var(--border); border-color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.primary {
+    background: var(--accent);
+    color: #0a0c10;
+    border-color: var(--accent);
+  }
+  button.primary:hover { background: #93c5fd; border-color: #93c5fd; }
+
+  /* --- Visualisation pane ------------------------------------------ */
+  .viz {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background:
+      radial-gradient(ellipse at 50% 30%, #1a1f2b 0%, var(--bg) 70%);
+    overflow: hidden;
+    min-height: 460px;
+    display: grid;
+    place-items: center;
+    perspective: 1400px;
+    perspective-origin: 50% 50%;
+  }
+  /* Faint grid + horizon — gives the 3D rotation something to read against. */
+  .viz::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  .viz::after {
+    content: "";
+    position: absolute;
+    left: 10%; right: 10%;
+    top: 50%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--border-strong), transparent);
+    pointer-events: none;
+  }
+  .plane-wrap {
+    width: min(60%, 360px);
+    aspect-ratio: 1;
+    transform-style: preserve-3d;
+    transform: rotateX(0deg) rotateZ(0deg);
+    transition: transform 90ms linear;
+    will-change: transform;
+    filter: drop-shadow(0 12px 24px rgba(96, 165, 250, 0.15));
+  }
+  .plane {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .plane .body { fill: url(#planeGrad); }
+  .plane .ridge { fill: rgba(0, 0, 0, 0.25); }
+  .plane .outline { fill: none; stroke: rgba(147, 197, 253, 0.6); stroke-width: 1.5; }
+  .plane .cockpit { fill: #fbbf24; }
+
+  .axes-hint {
+    position: absolute;
+    bottom: 16px;
+    left: 20px;
+    font: 11px ui-monospace, monospace;
+    color: var(--dim);
+    letter-spacing: 0.04em;
+  }
+
+  /* --- Side panel --------------------------------------------------- */
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .card-title {
+    font: 600 11px ui-sans-serif, system-ui, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 0 0 12px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .card-title em { font-style: normal; color: var(--dim); font-weight: 400; }
+  .axis {
+    display: grid;
+    grid-template-columns: 16px 1fr 64px;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    font: 13px ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .axis-label { color: var(--muted); }
+  .bar {
+    position: relative;
+    height: 6px;
+    background: #181c25;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .bar::before {
+    content: "";
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 1px;
+    background: var(--border-strong);
+  }
+  .bar-fill {
+    position: absolute;
+    top: 0; bottom: 0;
+    background: var(--color, var(--accent));
+    border-radius: 2px;
+    transition: left 50ms linear, width 50ms linear;
+  }
+  .value {
+    text-align: right;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .att-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+    font: 13px ui-monospace, monospace;
+  }
+  .att-grid dt { color: var(--muted); }
+  .att-grid dd {
+    margin: 0;
+    text-align: right;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  footer {
+    grid-column: 1 / -1;
+    font: 12px ui-monospace, monospace;
+    color: var(--dim);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  footer a { color: var(--muted); text-decoration: none; border-bottom: 1px dotted var(--border-strong); }
+  footer a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>MPU-6050 <span>viewer</span></h1>
+    <div class="controls">
+      <div class="status" id="status">
+        <span class="dot"></span>
+        <span id="status-text">not connected</span>
+      </div>
+      <button id="connect" class="primary">Connect…</button>
+      <button id="disconnect" disabled>Disconnect</button>
+    </div>
+  </header>
+
+  <section class="viz" aria-label="3D plane attitude view">
+    <div class="plane-wrap" id="planeWrap">
+      <svg class="plane" viewBox="-110 -110 220 220" aria-hidden="true">
+        <defs>
+          <linearGradient id="planeGrad" x1="0" y1="-1" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#93c5fd" />
+            <stop offset="100%" stop-color="#3b82f6" />
+          </linearGradient>
+        </defs>
+        <!-- Top-down stylised dart. Nose at top (y = -90). -->
+        <path class="body"
+              d="M 0,-95 L 95,45 L 25,30 L 8,75 L -8,75 L -25,30 L -95,45 Z" />
+        <!-- Center ridge gives a sense of which way is up when rolled. -->
+        <path class="ridge" d="M 0,-90 L 6,40 L 0,72 L -6,40 Z" />
+        <!-- Crisp outline so the silhouette holds at any angle. -->
+        <path class="outline"
+              d="M 0,-95 L 95,45 L 25,30 L 8,75 L -8,75 L -25,30 L -95,45 Z" />
+        <!-- Tiny cockpit dot — visual cue for "front". -->
+        <circle class="cockpit" cx="0" cy="-55" r="5" />
+      </svg>
+    </div>
+    <div class="axes-hint">
+      tilt board forward → nose down · tilt right → bank right
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="card">
+      <div class="card-title">Gyro <em>°/s &nbsp;·&nbsp; ±500</em></div>
+      <div class="axis" data-axis="gx"><span class="axis-label">x</span><div class="bar"><div class="bar-fill" style="--color: var(--gyro);"></div></div><span class="value">—</span></div>
+      <div class="axis" data-axis="gy"><span class="axis-label">y</span><div class="bar"><div class="bar-fill" style="--color: var(--gyro);"></div></div><span class="value">—</span></div>
+      <div class="axis" data-axis="gz"><span class="axis-label">z</span><div class="bar"><div class="bar-fill" style="--color: var(--gyro);"></div></div><span class="value">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Accel <em>g &nbsp;·&nbsp; ±4</em></div>
+      <div class="axis" data-axis="ax"><span class="axis-label">x</span><div class="bar"><div class="bar-fill" style="--color: var(--accel);"></div></div><span class="value">—</span></div>
+      <div class="axis" data-axis="ay"><span class="axis-label">y</span><div class="bar"><div class="bar-fill" style="--color: var(--accel);"></div></div><span class="value">—</span></div>
+      <div class="axis" data-axis="az"><span class="axis-label">z</span><div class="bar"><div class="bar-fill" style="--color: var(--accel);"></div></div><span class="value">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Attitude <em>derived from accel</em></div>
+      <dl class="att-grid">
+        <dt>pitch</dt><dd id="att-pitch">—</dd>
+        <dt>roll</dt><dd id="att-roll">—</dd>
+      </dl>
+    </div>
+  </aside>
+
+  <footer>
+    <span id="rate">— Hz</span>
+    <span>requires Chrome / Edge · expects sketch in <code>firmware/tests/mpu/</code></span>
+  </footer>
+
+<script>
+"use strict";
+
+const RANGES = { gx: 500, gy: 500, gz: 500, ax: 4, ay: 4, az: 4 };
+const FRACS  = { gx: 1,   gy: 1,   gz: 1,   ax: 2, ay: 2, az: 2 };
+
+const els = {
+  connect:    document.getElementById("connect"),
+  disconnect: document.getElementById("disconnect"),
+  status:     document.getElementById("status"),
+  statusText: document.getElementById("status-text"),
+  planeWrap:  document.getElementById("planeWrap"),
+  attPitch:   document.getElementById("att-pitch"),
+  attRoll:    document.getElementById("att-roll"),
+  rate:       document.getElementById("rate"),
+  axes:       Object.fromEntries(
+    ["gx","gy","gz","ax","ay","az"].map(k => [k, {
+      row:  document.querySelector(`.axis[data-axis="${k}"]`),
+      fill: document.querySelector(`.axis[data-axis="${k}"] .bar-fill`),
+      val:  document.querySelector(`.axis[data-axis="${k}"] .value`),
+    }]),
+  ),
+};
+
+// --- Connection state ------------------------------------------------
+let port = null;
+let reader = null;
+let keepReading = false;
+let samples = 0;
+let startedAt = 0;
+
+// Smoothed pitch/roll for the plane — raw accel is noisy enough that the
+// SVG would jitter on every sample. 0.2 is a compromise between latency
+// and steadiness; bump it higher for a snappier feel.
+let attPitch = 0;
+let attRoll = 0;
+const ATT_ALPHA = 0.2;
+
+function setStatus(text, kind) {
+  els.statusText.textContent = text;
+  els.status.classList.remove("live", "error");
+  if (kind) els.status.classList.add(kind);
+}
+
+if (!("serial" in navigator)) {
+  setStatus("Web Serial not supported", "error");
+  els.connect.disabled = true;
+  els.connect.title = "Open this page in Chrome or Edge.";
+}
+
+// --- Bar + value rendering ------------------------------------------
+function paintAxis(key, value) {
+  const a = els.axes[key];
+  if (!a) return;
+  const range = RANGES[key];
+  const clamped = Math.max(-range, Math.min(range, value));
+  // Bipolar bar grows from the centerline outward.
+  const pct = (clamped / range) * 50;
+  if (pct >= 0) {
+    a.fill.style.left  = "50%";
+    a.fill.style.width = pct + "%";
+  } else {
+    a.fill.style.left  = (50 + pct) + "%";
+    a.fill.style.width = (-pct) + "%";
+  }
+  a.val.textContent = value.toFixed(FRACS[key]);
+}
+
+function paintPlane() {
+  const pitchDeg = (attPitch * 180) / Math.PI;
+  const rollDeg  = (attRoll  * 180) / Math.PI;
+  // rotateX = pitch (nose up/down on screen), rotateZ = roll (bank).
+  // We negate pitch so "nose-up" tilts the top of the SVG away from us,
+  // which reads correctly through the perspective container.
+  els.planeWrap.style.transform =
+    `rotateX(${-pitchDeg.toFixed(2)}deg) rotateZ(${rollDeg.toFixed(2)}deg)`;
+  els.attPitch.textContent = pitchDeg.toFixed(0) + "°";
+  els.attRoll.textContent  = rollDeg.toFixed(0)  + "°";
+}
+
+function handleSample(ax, ay, az, gx, gy, gz) {
+  paintAxis("gx", gx); paintAxis("gy", gy); paintAxis("gz", gz);
+  paintAxis("ax", ax); paintAxis("ay", ay); paintAxis("az", az);
+
+  // Accel-only attitude. With gravity ≈ 1 g pointing "down" in the
+  // chip's frame, atan2 of the body-frame components reads off as
+  // pitch and roll directly. Lightly low-pass filtered.
+  const rawRoll  = Math.atan2(ay, az);
+  const rawPitch = Math.atan2(-ax, Math.sqrt(ay * ay + az * az));
+  attRoll  = ATT_ALPHA * rawRoll  + (1 - ATT_ALPHA) * attRoll;
+  attPitch = ATT_ALPHA * rawPitch + (1 - ATT_ALPHA) * attPitch;
+
+  samples++;
+}
+
+// Re-paint the plane and rate at a steady cadence (decoupled from the
+// stream rate) — keeps the SVG smooth even if samples bunch up.
+setInterval(() => {
+  if (port) paintPlane();
+  const dt = (performance.now() - startedAt) / 1000;
+  if (dt > 0.5) els.rate.textContent = (samples / dt).toFixed(1) + " Hz";
+}, 33);
+
+// --- Serial connection ----------------------------------------------
+async function connect() {
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200, bufferSize: 4096 });
+    setStatus("connected", "live");
+    els.connect.disabled = true;
+    els.disconnect.disabled = false;
+    samples = 0;
+    startedAt = performance.now();
+    readLoop();
+  } catch (err) {
+    // The user cancelling the picker shows up as a NotFoundError — not
+    // worth flagging as an actual error.
+    if (err && err.name === "NotFoundError") {
+      setStatus("not connected");
+      return;
+    }
+    console.error(err);
+    setStatus(err.message || String(err), "error");
+  }
+}
+
+async function disconnect() {
+  keepReading = false;
+  try { if (reader) await reader.cancel(); } catch {}
+  try { if (port)   await port.close(); } catch {}
+  port = null;
+  reader = null;
+  els.connect.disabled = false;
+  els.disconnect.disabled = true;
+  setStatus("not connected");
+}
+
+async function readLoop() {
+  keepReading = true;
+  const decoder = new TextDecoderStream();
+  const readableStreamClosed = port.readable.pipeTo(decoder.writable).catch(() => {});
+  reader = decoder.readable.getReader();
+  let buf = "";
+  try {
+    while (keepReading) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += value;
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).replace(/\r$/, "");
+        buf = buf.slice(nl + 1);
+        parseLine(line);
+      }
+    }
+  } catch (err) {
+    console.error("read error", err);
+    setStatus("read error: " + (err.message || err), "error");
+  } finally {
+    try { reader.releaseLock(); } catch {}
+    await readableStreamClosed;
+  }
+}
+
+function parseLine(line) {
+  if (!line.startsWith("MPU,")) {
+    // Boot probe / error messages from the sketch — surface them in the
+    // status pill rather than dropping silently.
+    if (line.trim().length) setStatus(line.trim());
+    return;
+  }
+  const parts = line.slice(4).split(",");
+  if (parts.length !== 6) return;
+  const n = parts.map(Number);
+  if (n.some(Number.isNaN)) return;
+  handleSample(n[0], n[1], n[2], n[3], n[4], n[5]);
+}
+
+els.connect.addEventListener("click", connect);
+els.disconnect.addEventListener("click", disconnect);
+</script>
+</body>
+</html>

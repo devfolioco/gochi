@@ -17,7 +17,15 @@ namespace {
 // so PIN_SDA/PIN_SCL are still honoured.
 // _F_ = full frame buffer, giving the clearBuffer()/sendBuffer() API.
 // HW I2C constructor args: rotation, reset, clock (SCL), data (SDA).
+//
+// Rotation defaults to U8G2_R0 (panel pins at top). Define
+// ROTATED_DISPLAY (via `.env` → ROTATED_DISPLAY=1, see the project
+// root) for a 180°-rotated panel.
+#ifdef ROTATED_DISPLAY
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C oled(U8G2_R2, U8X8_PIN_NONE, PIN_SCL, PIN_SDA);
+#else
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE, PIN_SCL, PIN_SDA);
+#endif
 
 }  // namespace
 

@@ -1,0 +1,10 @@
+# arduino-cli build profile — mirrors firmware/sketch.yaml so tests
+# build against the same toolchain as the main firmware.
+profiles:
+  c3:
+    fqbn: esp32:esp32:esp32c3:CDCOnBoot=cdc
+    platforms:
+      - platform: esp32:esp32 (3.3.8)
+        platform_index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+
+default_profile: c3

@@ -1,4 +1,10 @@
 # arduino-cli build output (contains machine-specific absolute paths)
 firmware/build/
 
+# per-test build dirs
+firmware/tests/*/build/
+
+# user-local build configuration (see .env.example)
+.env
+
 .DS_Store
