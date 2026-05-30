@@ -70,15 +70,29 @@ flash: build upload
 ##                  If the gochi daemon is running it is holding the
 ##                  serial port; we ask it to release the port before the
 ##                  upload and reacquire on exit (success or failure).
+
+# Shared upload helper — port guard + daemon-pause + upload.
+# Usage: $(call do-upload, INPUT_DIR, SKETCH_PATH)
+define do-upload
+@if [ -z "$(PORT)" ]; then \
+  echo "No port detected. Specify one explicitly, e.g.:"; \
+  echo "  make $@ PORT=/dev/cu.usbmodemXXXX   (macOS)"; \
+  echo "  make $@ PORT=/dev/ttyACM0           (Linux / WSL)"; \
+  echo "  make $@ PORT=COM7                   (Windows; from Git Bash)"; \
+  exit 1; \
+fi; \
+_paused=0; \
+if command -v gochi >/dev/null 2>&1 && launchctl list com.tamagotchi.daemon >/dev/null 2>&1; then \
+  _paused=1; \
+  echo "→ gochi stop (releasing serial port)"; \
+  gochi stop >/dev/null; \
+fi; \
+trap '[ "$$_paused" = 1 ] && echo "→ gochi start (reacquiring)" && gochi start >/dev/null' EXIT; \
+$(ARDUINO) upload --fqbn $(FQBN) --port "$(PORT)" --input-dir $(1) $(2)
+endef
+
 upload:
-	@_paused=0; \
-	if command -v gochi >/dev/null 2>&1 && launchctl list com.tamagotchi.daemon >/dev/null 2>&1; then \
-	  _paused=1; \
-	  echo "→ gochi stop (releasing serial port)"; \
-	  gochi stop >/dev/null; \
-	fi; \
-	trap '[ "$$_paused" = 1 ] && echo "→ gochi start (reacquiring)" && gochi start >/dev/null' EXIT; \
-	$(ARDUINO) upload --fqbn $(FQBN) --port $(PORT) --input-dir $(BUILD) $(SKETCH)
+	$(call do-upload,$(BUILD),$(SKETCH))
 
 ## erase         — wipe the entire flash (factory reset).
 ##                  arduino-cli has no built-in erase, so we shell out
@@ -144,17 +158,17 @@ clean:
 ## test-led       — compile + flash the LED-blink bring-up test
 test-led:
 	$(ARDUINO) compile --fqbn $(FQBN) $(BUILD_PROPS) --build-path firmware/tests/led/build firmware/tests/led
-	$(ARDUINO) upload  --fqbn $(FQBN) --port $(PORT) --input-dir firmware/tests/led/build firmware/tests/led
+	$(call do-upload,firmware/tests/led/build,firmware/tests/led)
 
 ## test-oled      — compile + flash the OLED bring-up test
 test-oled:
 	$(ARDUINO) compile --fqbn $(FQBN) $(BUILD_PROPS) --build-path firmware/tests/oled/build firmware/tests/oled
-	$(ARDUINO) upload  --fqbn $(FQBN) --port $(PORT) --input-dir firmware/tests/oled/build firmware/tests/oled
+	$(call do-upload,firmware/tests/oled/build,firmware/tests/oled)
 
 ## test-buzzer    — compile + flash the buzzer bring-up test
 test-buzzer:
 	$(ARDUINO) compile --fqbn $(FQBN) $(BUILD_PROPS) --build-path firmware/tests/buzzer/build firmware/tests/buzzer
-	$(ARDUINO) upload  --fqbn $(FQBN) --port $(PORT) --input-dir firmware/tests/buzzer/build firmware/tests/buzzer
+	$(call do-upload,firmware/tests/buzzer/build,firmware/tests/buzzer)
 
 ## test-mpu       — compile + flash the MPU-6050 streaming test, then
 ##                  open the live viewer in the default browser. Needs
@@ -162,5 +176,5 @@ test-buzzer:
 ##                  holding the port, `gochi stop` first.
 test-mpu:
 	$(ARDUINO) compile --fqbn $(FQBN) $(BUILD_PROPS) --build-path firmware/tests/mpu/build firmware/tests/mpu
-	$(ARDUINO) upload  --fqbn $(FQBN) --port $(PORT) --input-dir firmware/tests/mpu/build firmware/tests/mpu
+	$(call do-upload,firmware/tests/mpu/build,firmware/tests/mpu)
 	@$(OPEN) firmware/tests/mpu/visualize.html
